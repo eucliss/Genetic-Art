@@ -1,4 +1,4 @@
-(ns genetic-art.core
+(ns Genetic-Art.core
   (:gen-class))
 
 ;;;;;;;;;;
