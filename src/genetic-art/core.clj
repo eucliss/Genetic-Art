@@ -317,23 +317,23 @@
   ([prob] (< (rand) prob))
   ([prob x] (prob-pick prob)))
 
-  -(defn crossover
- -  "Crosses over two programs (note: not individuals) using uniform crossover.
- -  Returns child program."
- -  [prog-a
- -   prog-b]
- -  (loop [prog-a prog-a
- -         prog-b prog-b
- -         new '()]
- -    (if (empty? prog-a) ;; If one is empty then 50% chance to take the others instruction at that index
- -      (concat new (filter #(prob-pick 0.5 %) prog-b))
- -      (if (empty? prog-b)
- -        (concat new (filter #(prob-pick 0.5 %) prog-a))
- -        (recur (rest prog-a)
- -               (rest prog-b)
- -               (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
- -                 (apply list (conj (apply vector new) (first prog-a)))
- -                 (apply list (conj (apply vector new) (first prog-b)))))))))
+(defn crossover
+  "Crosses over two programs (note: not individuals) using uniform crossover.
+  Returns child program."
+  [prog-a
+   prog-b]
+  (loop [prog-a prog-a
+         prog-b prog-b
+         new '()]
+    (if (empty? prog-a) ;; If one is empty then 50% chance to take the others instruction at that index
+      (concat new (filter #(prob-pick 0.5 %) prog-b))
+      (if (empty? prog-b)
+        (concat new (filter #(prob-pick 0.5 %) prog-a))
+        (recur (rest prog-a)
+               (rest prog-b)
+               (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
+                 (apply list (conj (apply vector new) (first prog-a)))
+                  (apply list (conj (apply vector new) (first prog-b)))))))))
 
 
 ;;;;;;;;;;
