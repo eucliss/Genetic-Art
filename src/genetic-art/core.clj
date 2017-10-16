@@ -1,5 +1,7 @@
 (ns Genetic-Art.core
   (:gen-class))
+(use 'mikera.image.core)
+(require '[mikera.image.filters :as filt])
 
 ;;;;;;;;;;
 ;; Examples
@@ -46,15 +48,17 @@
    5
    ))
 
+;; NEED MORE INSTRUCTIONS
 
-;;;;;;;;;;
-;; Utilities
 
+;;;;;;;;;;;;;;;;;;;;;;;
+;; Examples
+;;;;;;;;;;;;;;;;;;;;;;;
 (def image_example
   '((6,3,4,5),
-       (5, 3, 1, 9),
-       (1, 12, 6, 8),
-   (5, 12, 9, 6))
+    (5, 3, 1, 9),
+    (1, 12, 6, 8),
+    (5, 12, 9, 6))
   )
 
 (def image_example_empty
@@ -93,6 +97,13 @@
             (5, 3, 1, 9),
             (1, 12, 6, 8),
             (5, 12, 9, 6))}})
+;;;;;;;;;;;;;;;;;;
+;; Examples end ;;
+;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;
+;; Utilities ;;
+;;;;;;;;;;;;;;;
 
 ;; GOOD
 (defn push-to-stack
@@ -163,8 +174,25 @@
             new-state (:state args-pop-result)]
         (push-to-stack new-state return-stack result)))))
 
-;;;;;;;;;;
-;; Instructions
+(defn print-image-pixels
+  "Takes an image matrix and prints it"
+  [image]
+  (loop [x 0]
+    (loop [y 0]
+      (when (< y (dec (height image)))
+            (print (get-pixel image x y) "")
+            (recur (inc y))))
+    (when (< x (dec (width image)))
+          (println)
+          (recur (inc x)))))
+
+;;;;;;;;;;;;;;;;;;;
+;; Utilities End ;;
+;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;
+;; Instructions ;;
+;;;;;;;;;;;;;;;;;;
 
 ;; MAYBE
 (defn in1
@@ -242,8 +270,14 @@
   [A number]
   )
 
-;;;;;;;;;;
-;; Interpreter
+;;;;;;;;;;;;;;;;;;;;;;
+;; Instructions End ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;
+;; Interpreter ;;
+;;;;;;;;;;;;;;;;;
 
 ;; MAYBE
 (defn load-exec
@@ -284,11 +318,13 @@
       (if (empty-stack? state :exec)
           state
           (recur (interpret-one-step state)))))) ;; Recur interpret each step
-
+;;;;;;;;;;;;;;;;;;;;;
+;; Interpreter End ;;
+;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;
-;; GP
-
+;; GP   ;;
+;;;;;;;;;;
 
 ;;;;;;;;;;
 ;; Parent Selection Techniques
@@ -498,6 +534,14 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [size max-program-size]
   ;; Creates individuals with no errors associated with them yet
   (map #(prog-to-individual %) (take size (repeatedly #(make-random-push-program instructions max-program-size)))))
+
+
+
+(defn load-images
+  "Loads an int array of RGB values into a list from
+  a bunch of image file names"
+  [& images]  
+  (map #(get-pixels (load-image-resource %)) images))
 
 ;; MAYBE
 (defn get-child-population
