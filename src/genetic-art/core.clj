@@ -89,6 +89,17 @@
    'integer_-
    'integer_*
    'integer_%
+   'vsplit_combine
+   'hsplit_combine
+   'vertical_rotate
+   'horizontal_rotate
+   'row_mutate
+   'column_mutate
+   'invert_colors
+   'scramble_grid
+   'section-and
+   'section-or
+   'section-xor
    0
    1
    2
@@ -250,9 +261,14 @@
 
 (defn vsplit_combine
   "Splits two input images in half and combines them, half of image A, half of image B"
-  [A B]
+  [A B col]
   :STUB
   )
+
+(defn hsplit_combine
+  "Splits two images horizontally and combines them"
+  [A B row]
+  :STUB)
 
 (defn vertical_rotate
   "Rotates the input image vertically by a number
@@ -287,6 +303,44 @@
   "Mutates a single element at a certain coordinate"
   [A row col]
   :STUB)
+
+(defn scalar_multiply
+  "Multiplies every pixel by a constant, then mod it for new colors"
+  [A scalar]
+  :STUB)
+
+
+(defn invert_colors
+  "Inverts colors of the pic"
+  [A]
+  :STUB)
+
+(defn scramble_grid
+  "Splits the image into smaller rectangles and randomly places all of them in
+  a new spot"
+  [A rect_size]
+  :STUB)
+
+(defn section-and
+  "Takes a subrectangle of image A and performs a bitwise AND on all the 
+  pixels of a subrectangle of the same size in image B.  Returns image B"
+  [A B rect-x rect-y]
+  :STUB)
+
+(defn section-or
+  "Takes a subrectangle of image A and performs a bitwise or on all the 
+  pixels of a subrectangle of the same size in image B.  Returns image B"
+  [A B rect-x rect-y]
+  :STUB)
+
+(defn section-xor
+  "Takes a subrectangle of image A and performs a bitwise XOR on all the 
+  pixels of a subrectangle of the same size in image B.  Returns image B"
+  [A B rect-x rect-y]
+  :STUB)
+
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Instructions End ;;
