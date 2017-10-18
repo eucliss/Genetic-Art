@@ -29,28 +29,6 @@
    :total-error 37
    :determinant-error 12})
 
-
-;;;;;;;;;;
-;; Instructions must all be either functions that take one Push
-;; state and return another or constant literals.
-(def instructions
-  (list
-   'in1  ;; Need more inputs. ...
-   'integer_+
-   'integer_-
-   'integer_*
-   'integer_%
-   0
-   1
-   2
-   3
-   4
-   5
-   ))
-
-;; NEED MORE INSTRUCTIONS
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Examples
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -100,6 +78,26 @@
 ;;;;;;;;;;;;;;;;;;
 ;; Examples end ;;
 ;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;
+;; Instructions must all be either functions that take one Push
+;; state and return another or constant literals.
+(def instructions
+  (list
+   'in1  ;; Need more inputs. ...
+   'integer_+
+   'integer_-
+   'integer_*
+   'integer_%
+   0
+   1
+   2
+   3
+   4
+   5
+   ))
+
+;; NEED MORE INSTRUCTIONS
 
 ;;;;;;;;;;;;;;;
 ;; Utilities ;;
@@ -158,7 +156,6 @@
           (recur (pop-stack state stack)
                  (rest stacks)
                  (conj args (peek-stack state stack))))))))
-
 
 ;; GOOD
 (defn make-push-instruction
@@ -270,6 +267,27 @@
   [A number]
   )
 
+(defn fuck-shit-stack
+  "Completely re-writes a matrix based off nothing but random numbers"
+  [A]
+  :STUB)
+
+(defn row_mutate
+  "Mutates elements of a row index in A based on a probability, if 50% prob,
+  each element in the row of A at that index has a 50% chance of being mutated"
+  [A index probability]
+  :STUB)
+
+(defn column_mutate
+  "Same as row but with using columns"
+  [A index probability]
+  :STUB)
+
+(defn coordinate_mutate
+  "Mutates a single element at a certain coordinate"
+  [A row col]
+  :STUB)
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Instructions End ;;
 ;;;;;;;;;;;;;;;;;;;;;;
@@ -326,8 +344,6 @@
 ;; GP   ;;
 ;;;;;;;;;;
 
-;;;;;;;;;;
-;; Parent Selection Techniques
 ;; GOOD
 (defn make-random-push-program
   "Creates and returns a new program. Takes a list of instructions and
@@ -372,11 +388,34 @@
                   (apply list (conj (apply vector new) (first prog-b)))))))))
 
 
-;;;;;;;;;;
-;; Variation Techniques
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; GP Operators       ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; ------------------------------------
+;; ---------- Crossovers ------------------
+
+;; BAD
+;; Gunna have to change this to work with the new individual and image structure
+(defn crossover
+  "Crosses over two programs (note: not individuals) using uniform crossover.
+  Returns child program."
+  [prog-a
+   prog-b]
+  (loop [prog-a prog-a
+         prog-b prog-b
+         new '()]
+    (if (empty? prog-a) ;; If one is empty then 50% chance to take the others instruction at that index
+      (concat new (filter #(prob-pick 0.5 %) prog-b))
+      (if (empty? prog-b)
+        (concat new (filter #(prob-pick 0.5 %) prog-a))
+        (recur (rest prog-a)
+               (rest prog-b)
+               (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
+                 (apply list (conj (apply vector new) (first prog-a)))
+                 (apply list (conj (apply vector new) (first prog-b)))))))))
+
 
 ;; ---- Mutations ------------------------
-
 
 ;; BAD
 ;; Needs to be changed based on program structure
@@ -402,49 +441,6 @@
   [program]
   (filter #(not (prob-pick 0.05 %)) program))
 
-(defn fuck-shit-stack
-  "Completely re-writes a matrix based off nothing but random numbers"
-  [A]
-  :STUB)
-
-(defn row_mutate
-  "Mutates elements of a row index in A based on a probability, if 50% prob,
-  each element in the row of A at that index has a 50% chance of being mutated"
-  [A index probability]
-  :STUB)
-
-(defn column_mutate
-  "Same as row but with using columns"
-  [A index probability]
-  :STUB)
-
-(defn coordinate_mutate
-  "Mutates a single element at a certain coordinate"
-  [A row col]
-  :STUB)
-
-;; ------------------------------------
-;; ---------- Crossovers ------------------
-
-;; BAD
-;; Gunna have to change this to work with the new individual and image structure
-(defn crossover
-  "Crosses over two programs (note: not individuals) using uniform crossover.
-  Returns child program."
-  [prog-a
-   prog-b]
-  (loop [prog-a prog-a
-         prog-b prog-b
-         new '()]
-    (if (empty? prog-a) ;; If one is empty then 50% chance to take the others instruction at that index
-      (concat new (filter #(prob-pick 0.5 %) prog-b))
-      (if (empty? prog-b)
-        (concat new (filter #(prob-pick 0.5 %) prog-a))
-        (recur (rest prog-a)
-               (rest prog-b)
-               (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
-                 (apply list (conj (apply vector new) (first prog-a)))
-                 (apply list (conj (apply vector new) (first prog-b)))))))))
 
 ;; BAD
 (defn prog-to-individual
@@ -535,13 +531,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   ;; Creates individuals with no errors associated with them yet
   (map #(prog-to-individual %) (take size (repeatedly #(make-random-push-program instructions max-program-size)))))
 
-
-
 (defn load-images
-  "Loads an int array of RGB values into a list from
+  "Loads a bunch of BufferedImages into a list from
   a bunch of image file names"
   [& images]  
-  (map #(get-pixels (load-image-resource %)) images))
+  (map #(load-image-resource %) images))
 
 ;; MAYBE
 (defn get-child-population
