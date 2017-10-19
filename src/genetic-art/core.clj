@@ -1,5 +1,7 @@
 (ns Genetic-Art.core
   (:gen-class))
+(use 'mikera.image.core)
+(require '[mikera.image.filters :as filt])
 
 ;;;;;;;;;;
 ;; Examples
@@ -27,34 +29,14 @@
    :total-error 37
    :determinant-error 12})
 
-
-;;;;;;;;;;
-;; Instructions must all be either functions that take one Push
-;; state and return another or constant literals.
-(def instructions
-  (list
-   'in1  ;; Need more inputs. ...
-   'integer_+
-   'integer_-
-   'integer_*
-   'integer_%
-   0
-   1
-   2
-   3
-   4
-   5
-   ))
-
-
-;;;;;;;;;;
-;; Utilities
-
+;;;;;;;;;;;;;;;;;;;;;;;
+;; Examples
+;;;;;;;;;;;;;;;;;;;;;;;
 (def image_example
   '((6,3,4,5),
-       (5, 3, 1, 9),
-       (1, 12, 6, 8),
-   (5, 12, 9, 6))
+    (5, 3, 1, 9),
+    (1, 12, 6, 8),
+    (5, 12, 9, 6))
   )
 
 (def image_example_empty
@@ -93,6 +75,44 @@
             (5, 3, 1, 9),
             (1, 12, 6, 8),
             (5, 12, 9, 6))}})
+;;;;;;;;;;;;;;;;;;
+;; Examples end ;;
+;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;
+;; Instructions must all be either functions that take one Push
+;; state and return another or constant literals.
+(def instructions
+  (list
+   'in1  ;; Need more inputs. ...
+   'integer_+
+   'integer_-
+   'integer_*
+   'integer_%
+   'vsplit_combine
+   'hsplit_combine
+   'vertical_rotate
+   'horizontal_rotate
+   'row_mutate
+   'column_mutate
+   'invert_colors
+   'scramble_grid
+   'section-and
+   'section-or
+   'section-xor
+   0
+   1
+   2
+   3
+   4
+   5
+   ))
+
+;; NEED MORE INSTRUCTIONS
+
+;;;;;;;;;;;;;;;
+;; Utilities ;;
+;;;;;;;;;;;;;;;
 
 ;; GOOD
 (defn push-to-stack
@@ -148,7 +168,6 @@
                  (rest stacks)
                  (conj args (peek-stack state stack))))))))
 
-
 ;; GOOD
 (defn make-push-instruction
   "A utility function for making Push instructions. Takes a state, the function
@@ -163,8 +182,30 @@
             new-state (:state args-pop-result)]
         (push-to-stack new-state return-stack result)))))
 
-;;;;;;;;;;
-;; Instructions
+(defn print-image-pixels
+  "Takes a BufferedImage and prints it"
+  [image]
+  (loop [x 0]
+    (loop [y 0]
+      (when (< y (dec (height image)))
+            (print (get-pixel image x y) "")
+            (recur (inc y))))
+    (when (< x (dec (width image)))
+          (println)
+          (recur (inc x)))))
+
+;;;;;;;;;;;;;;;;;;;
+;; Utilities End ;;
+;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;
+;; Instructions ;;
+;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Integer stack instructions
+
+;; THESE WILL BE USED FOR EXEC INSTRUCTIONS ONLY
 
 ;; MAYBE
 (defn in1
@@ -223,27 +264,115 @@
               (peek-stack state :integer)))
       (make-push-instruction state quot [:integer :integer] :integer))))
 
+;;;;;;;;;;;;;;;;;;;;;
+;; Exec instructions
+
+;; WILL NEED TO DEAL WITH INFINITE LOOPS IN EXEC INSTRUCTIONS
+(defn exec_do*count
+  ""
+  [state]
+  :STUB)
+
+(defn exec_do*range
+  ""
+  [state]
+  :STUB)
+
+(defn exec_dup
+  ""
+  [state]
+  :STUB)
+
+(defn exec_if
+  ""
+  [state]
+  :STUB)
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Image manipulation
+
 (defn vsplit_combine
-  "Splits two input images in half and combines them, half of image A, half of image B"
-  [A B]
+  "Splits two input images in half and combines them, half of image A, half of image B.
+  Split column is decided randomly here."
+  [state]
   :STUB
   )
 
+(defn hsplit_combine
+  "Splits two images horizontally and combines them.
+  Split row is decided randomly here."
+  [state]
+  :STUB)
+
+(defn section-and
+  "Takes a state, takes two random rectangles out of
+  two images of random dimensions (same for each image) and performs a bitwise AND between
+  all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
+  [state]
+  :STUB)
+
+(defn section-or
+  "Takes a state, takes two random rectangles out of
+  two images of random dimensions (same for each image) and performs a bitwise OR between
+  all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
+  [state]
+  :STUB)
+
+(defn section-xor
+  "Takes a state, takes two random rectangles out of
+  two images of random dimensions (same for each image) and performs a bitwise XOR between
+  all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
+  [state]
+  :STUB)
+
 (defn vertical_rotate
-  "Rotates the input image vertically by a number
+  "Rotates the input image vertically by a random number, which is generated here.
   vertical_rotate(x, 2) ----> ((a), (b), (c)) -> ((b), (c), (a))"
-  [A number]
-  )
+  [state]
+  :STUB)
 
 (defn horizontal_rotate
-  "Rotates the input image horizontally by a number
+  "Rotates the input image horizontally by a random number, which is generated here.
   horizontal_rotate(x, 1) ----> ((a1, a2), (b1, b2), (c1, c2)) ->
   ((a2, a1), (b2, b1), (c2, c1))"
-  [A number]
-  )
+  [state]
+  :STUB)
 
-;;;;;;;;;;
-;; Interpreter
+(defn fuck-shit-stack
+  "Completely re-writes a matrix based off nothing but random numbers"
+  [state]
+  :STUB)
+
+(defn row_mutate
+  "Mutates elements of a random row in A based on a probability.
+  Each element in the row has a [probability] chance of being mutated"
+  [state]
+  :STUB)
+
+(defn column_mutate
+  "Same as row but with using columns"
+  [state]
+  :STUB)
+
+(defn invert_colors
+  "Inverts colors of the pic"
+  [state]
+  :STUB)
+
+(defn scramble_grid
+  "Splits the image into smaller rectangles of random size and randomly places all of them in
+  a new spot"
+  [state]
+  :STUB)
+
+;;;;;;;;;;;;;;;;;;;;;;
+;; Instructions End ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;
+;; Interpreter ;;
+;;;;;;;;;;;;;;;;;
 
 ;; MAYBE
 (defn load-exec
@@ -284,14 +413,14 @@
       (if (empty-stack? state :exec)
           state
           (recur (interpret-one-step state)))))) ;; Recur interpret each step
-
-
-;;;;;;;;;;
-;; GP
-
+;;;;;;;;;;;;;;;;;;;;;
+;; Interpreter End ;;
+;;;;;;;;;;;;;;;;;;;;;
 
 ;;;;;;;;;;
-;; Parent Selection Techniques
+;; GP   ;;
+;;;;;;;;;;
+
 ;; GOOD
 (defn make-random-push-program
   "Creates and returns a new program. Takes a list of instructions and
@@ -317,6 +446,14 @@
   ([prob] (< (rand) prob))
   ([prob x] (prob-pick prob)))
 
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; GP Operators       ;;
+;;;;;;;;;;;;;;;;;;;;;;;;
+;; ------------------------------------
+;; ---------- Crossovers ------------------
+
+;; BAD
+;; Gunna have to change this to work with the new individual and image structure
 (defn crossover
   "Crosses over two programs (note: not individuals) using uniform crossover.
   Returns child program."
@@ -333,14 +470,10 @@
                (rest prog-b)
                (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
                  (apply list (conj (apply vector new) (first prog-a)))
-                  (apply list (conj (apply vector new) (first prog-b)))))))))
+                 (apply list (conj (apply vector new) (first prog-b)))))))))
 
-
-;;;;;;;;;;
-;; Variation Techniques
 
 ;; ---- Mutations ------------------------
-
 
 ;; BAD
 ;; Needs to be changed based on program structure
@@ -366,49 +499,9 @@
   [program]
   (filter #(not (prob-pick 0.05 %)) program))
 
-(defn fuck-shit-stack
-  "Completely re-writes a matrix based off nothing but random numbers"
-  [A]
-  :STUB)
-
-(defn row_mutate
-  "Mutates elements of a row index in A based on a probability, if 50% prob,
-  each element in the row of A at that index has a 50% chance of being mutated"
-  [A index probability]
-  :STUB)
-
-(defn column_mutate
-  "Same as row but with using columns"
-  [A index probability]
-  :STUB)
-
-(defn coordinate_mutate
-  "Mutates a single element at a certain coordinate"
-  [A row col]
-  :STUB)
-
-;; ------------------------------------
-;; ---------- Crossovers ------------------
-
-;; BAD
-;; Gunna have to change this to work with the new individual and image structure
-(defn crossover
-  "Crosses over two programs (note: not individuals) using uniform crossover.
-  Returns child program."
-  [prog-a
-   prog-b]
-  (loop [prog-a prog-a
-         prog-b prog-b
-         new '()]
-    (if (empty? prog-a) ;; If one is empty then 50% chance to take the others instruction at that index
-      (concat new (filter #(prob-pick 0.5 %) prog-b))
-      (if (empty? prog-b)
-        (concat new (filter #(prob-pick 0.5 %) prog-a))
-        (recur (rest prog-a)
-               (rest prog-b)
-               (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
-                 (apply list (conj (apply vector new) (first prog-a)))
-                 (apply list (conj (apply vector new) (first prog-b)))))))))
+;;;;;;;;;;;;;;;;;;
+;; End operators
+;;;;;;;;;;;;;;;;;;
 
 ;; BAD
 (defn prog-to-individual
@@ -498,6 +591,12 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [size max-program-size]
   ;; Creates individuals with no errors associated with them yet
   (map #(prog-to-individual %) (take size (repeatedly #(make-random-push-program instructions max-program-size)))))
+
+(defn load-images
+  "Loads a bunch of BufferedImages into a list from
+  a bunch of image file names"
+  [& images]  
+  (map #(load-image-resource %) images))
 
 ;; MAYBE
 (defn get-child-population
