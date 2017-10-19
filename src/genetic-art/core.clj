@@ -183,7 +183,7 @@
         (push-to-stack new-state return-stack result)))))
 
 (defn print-image-pixels
-  "Takes an image matrix and prints it"
+  "Takes a BufferedImage and prints it"
   [image]
   (loop [x 0]
     (loop [y 0]
@@ -201,6 +201,11 @@
 ;;;;;;;;;;;;;;;;;;
 ;; Instructions ;;
 ;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Integer stack instructions
+
+;; THESE WILL BE USED FOR EXEC INSTRUCTIONS ONLY
 
 ;; MAYBE
 (defn in1
@@ -259,88 +264,106 @@
               (peek-stack state :integer)))
       (make-push-instruction state quot [:integer :integer] :integer))))
 
+;;;;;;;;;;;;;;;;;;;;;
+;; Exec instructions
+
+;; WILL NEED TO DEAL WITH INFINITE LOOPS IN EXEC INSTRUCTIONS
+(defn exec_do*count
+  ""
+  [state]
+  :STUB)
+
+(defn exec_do*range
+  ""
+  [state]
+  :STUB)
+
+(defn exec_dup
+  ""
+  [state]
+  :STUB)
+
+(defn exec_if
+  ""
+  [state]
+  :STUB)
+
+;;;;;;;;;;;;;;;;;;;;;
+;; Image manipulation
+
 (defn vsplit_combine
-  "Splits two input images in half and combines them, half of image A, half of image B"
-  [A B col]
+  "Splits two input images in half and combines them, half of image A, half of image B.
+  Split column is decided randomly here."
+  [state]
   :STUB
   )
 
 (defn hsplit_combine
-  "Splits two images horizontally and combines them"
-  [A B row]
+  "Splits two images horizontally and combines them.
+  Split row is decided randomly here."
+  [state]
+  :STUB)
+
+(defn section-and
+  "Takes a state, takes two random rectangles out of
+  two images of random dimensions (same for each image) and performs a bitwise AND between
+  all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
+  [state]
+  :STUB)
+
+(defn section-or
+  "Takes a state, takes two random rectangles out of
+  two images of random dimensions (same for each image) and performs a bitwise OR between
+  all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
+  [state]
+  :STUB)
+
+(defn section-xor
+  "Takes a state, takes two random rectangles out of
+  two images of random dimensions (same for each image) and performs a bitwise XOR between
+  all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
+  [state]
   :STUB)
 
 (defn vertical_rotate
-  "Rotates the input image vertically by a number
+  "Rotates the input image vertically by a random number, which is generated here.
   vertical_rotate(x, 2) ----> ((a), (b), (c)) -> ((b), (c), (a))"
-  [A number]
-  )
+  [state]
+  :STUB)
 
 (defn horizontal_rotate
-  "Rotates the input image horizontally by a number
+  "Rotates the input image horizontally by a random number, which is generated here.
   horizontal_rotate(x, 1) ----> ((a1, a2), (b1, b2), (c1, c2)) ->
   ((a2, a1), (b2, b1), (c2, c1))"
-  [A number]
-  )
+  [state]
+  :STUB)
 
 (defn fuck-shit-stack
   "Completely re-writes a matrix based off nothing but random numbers"
-  [A]
+  [state]
   :STUB)
 
 (defn row_mutate
-  "Mutates elements of a row index in A based on a probability, if 50% prob,
-  each element in the row of A at that index has a 50% chance of being mutated"
-  [A index probability]
+  "Mutates elements of a random row in A based on a probability.
+  Each element in the row has a [probability] chance of being mutated"
+  [state]
   :STUB)
 
 (defn column_mutate
   "Same as row but with using columns"
-  [A index probability]
+  [state]
   :STUB)
-
-(defn coordinate_mutate
-  "Mutates a single element at a certain coordinate"
-  [A row col]
-  :STUB)
-
-(defn scalar_multiply
-  "Multiplies every pixel by a constant, then mod it for new colors"
-  [A scalar]
-  :STUB)
-
 
 (defn invert_colors
   "Inverts colors of the pic"
-  [A]
+  [state]
   :STUB)
 
 (defn scramble_grid
-  "Splits the image into smaller rectangles and randomly places all of them in
+  "Splits the image into smaller rectangles of random size and randomly places all of them in
   a new spot"
-  [A rect_size]
+  [state]
   :STUB)
-
-(defn section-and
-  "Takes a subrectangle of image A and performs a bitwise AND on all the 
-  pixels of a subrectangle of the same size in image B.  Returns image B"
-  [A B rect-x rect-y]
-  :STUB)
-
-(defn section-or
-  "Takes a subrectangle of image A and performs a bitwise or on all the 
-  pixels of a subrectangle of the same size in image B.  Returns image B"
-  [A B rect-x rect-y]
-  :STUB)
-
-(defn section-xor
-  "Takes a subrectangle of image A and performs a bitwise XOR on all the 
-  pixels of a subrectangle of the same size in image B.  Returns image B"
-  [A B rect-x rect-y]
-  :STUB)
-
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Instructions End ;;
@@ -423,25 +446,6 @@
   ([prob] (< (rand) prob))
   ([prob x] (prob-pick prob)))
 
-(defn crossover
-  "Crosses over two programs (note: not individuals) using uniform crossover.
-  Returns child program."
-  [prog-a
-   prog-b]
-  (loop [prog-a prog-a
-         prog-b prog-b
-         new '()]
-    (if (empty? prog-a) ;; If one is empty then 50% chance to take the others instruction at that index
-      (concat new (filter #(prob-pick 0.5 %) prog-b))
-      (if (empty? prog-b)
-        (concat new (filter #(prob-pick 0.5 %) prog-a))
-        (recur (rest prog-a)
-               (rest prog-b)
-               (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
-                 (apply list (conj (apply vector new) (first prog-a)))
-                  (apply list (conj (apply vector new) (first prog-b)))))))))
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;; GP Operators       ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -495,6 +499,9 @@
   [program]
   (filter #(not (prob-pick 0.05 %)) program))
 
+;;;;;;;;;;;;;;;;;;
+;; End operators
+;;;;;;;;;;;;;;;;;;
 
 ;; BAD
 (defn prog-to-individual
