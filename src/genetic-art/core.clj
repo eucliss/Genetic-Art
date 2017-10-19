@@ -540,6 +540,10 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;;;;;;;;;;
 ;; Error Functions
 
+(defn target-function
+  [x]
+  (+ (* x x x) x 3))
+
 ;; GOOD
 (defn abs
   "Returns the absolute value of a number x"
@@ -548,6 +552,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (*' -1 x)
     x))
 
+(def test-cases
+  '(-2 -1 0 1 2))
 ;; MAYBE
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
