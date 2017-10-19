@@ -1,6 +1,7 @@
 (ns Genetic-Art.core
   (:gen-class))
 (use 'mikera.image.core)
+(use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
 
 ;;;;;;;;;;
@@ -706,9 +707,12 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (5,5,5,5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5))
   )
 
-(def test-cases
+(def test-cases2
   '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
   )
+
+(def test-cases
+  (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
 
 ;; MAYBE
 (defn evaluate-one-case
@@ -816,3 +820,27 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
             :max-generations 100
             :population-size 20
             :max-initial-program-size 15}))
+
+
+
+;; This does some funky stuff but it works
+
+;; I guess we have ot load the image as a buffered image, grab its pixels into a separate variable, and then manipulate that pixel list, and then set it using the set-pixels
+
+;; Basically load the image we want
+(def bi (first (load-images "arrow_up.jpg")))
+
+;; gets the pixels of the image, as an int array
+(def pixels (get-pixels bi))
+
+;; fill some random pixels with colours
+;; I guess this sets first 10  pixels with random colors but im not sure
+(dotimes [i 10]
+  (aset pixels i (rand-colour))) ;; sets a index in a list to a random color, like -3226114
+
+;; update the image with the newly changed pixel values
+(set-pixels bi pixels)
+
+;; view our new work of art
+;; the zoom function will automatically interpolate the pixel values
+(show bi :zoom 10.0 :title "Isn't it beautiful?")
