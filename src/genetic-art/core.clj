@@ -53,8 +53,8 @@
    :input {}})
 
 (def full-state
-  {:exec '(integer_+ integer_-)
-   :integer '(2 1 3 4)
+  {:exec '(integer_% integer_-)
+   :integer '(4 83 3 4)
    :image '((0,0,0,0),
             (0, 0, 0, 0),
             (0, 0, 0, 0),
@@ -83,6 +83,15 @@
 ;; Instructions must all be either functions that take one Push
 ;; state and return another or constant literals.
 (def instructions
+  (list
+   'in1  ;; Need more inputs. ...
+   'integer_+
+   'integer_-
+   'integer_*
+   'integer_%
+   ))
+
+(def instruction
   (list
    'in1  ;; Need more inputs. ...
    'integer_+
@@ -212,7 +221,7 @@
   "Pushes the input labeled :in1 on the inputs map onto the :exec stack.
   Can't use make-push-instruction, since :input isn't a stack, but a map."
   [state]
-  (push-to-stack (pop-stack state :exec)      ;; Pop in1 from the exec stack
+  (push-to-stack state      ;; Pop in1 from the exec stack
                  :exec                        ;; and push :in1 from :input stack
                  ((state :input) :in1)))
 
@@ -223,39 +232,33 @@
   "Adds the top two integers and leaves result on the integer stack.
   If integer stack has fewer than two elements, noops."
   [state]
-  (if (< (count (get state :integer)) 2) ;; conditional to make sure there are enough ints on the stack
-    (pop-stack state :exec)
-    (make-push-instruction state +' [:integer :integer] :integer)))
+  (make-push-instruction state +' [:integer :integer] :integer))
 
 (defn integer_-
   "Subtracts the top two integers and leaves result on the integer stack.
   Note: the second integer on the stack should be subtracted from the top integer."
   [state]
-  (if (< (count (get state :integer)) 2)
-    (pop-stack state :exec)
-    (make-push-instruction state -' [:integer :integer] :integer)))
+  (make-push-instruction state -' [:integer :integer] :integer))
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
   [state]
-  (if (< (count (get state :integer)) 2)
-    (pop-stack state :exec)
-    (make-push-instruction state *' [:integer :integer] :integer)))
+  (make-push-instruction state *' [:integer :integer] :integer))
 
 ;; BAD
 ;; Needs to be changed based on how we do integer_%
 (defn divide_by_zero?
   "Helper function for integer_%.  Makes sure we don't divide by 0."
   [state]
-  (= (first (state :integer))) 0)
+  (zero? (first (state :integer))))
 
 (defn integer_%
   "This instruction implements 'protected division'.
   In other words, it acts like integer division most of the time, but if the
   denominator is 0, it returns the numerator, to avoid divide-by-zero errors."
   [state]
-  (if (< (count (get state :integer)) 2)
-    (pop-stack state :exec)
+  (if (< (count (:integer state)) 2)
+    state
     (if (divide_by_zero? state) ;; Return the numerator to the int stack if dividing by 0, else division
       (assoc state :integer
              (conj
@@ -389,17 +392,13 @@
   Returns the new Push state."
   [push-state]
   (if (not (empty-stack? push-state :exec))  ;; If it is empty, return the push-state
-    (let [element (peek-stack push-state :exec)] ;; Else lets see whats the first element
+    (let [element (peek-stack push-state :exec)
+          popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
       (cond
-        (instance? String element) (push-to-stack (pop-stack push-state :exec) :string element) ;; String
-        (instance? Number element) (push-to-stack (pop-stack push-state :exec) :integer element) ;; Number
-        (= 'in1 element) (in1 push-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
-        (seq? element) (interpret-one-step (load-exec element (pop-stack push-state :exec))) ;; Nested isntructions
-        :else (pop-stack ;; This is for symbols ( integer_+, integer_-, ...)
-               ((eval (first
-                         (get (get-args-from-stacks push-state '(:exec))
-                              :args)))
-               push-state) :exec)))
+        (integer? element) (push-to-stack popped-state :integer element) ;; Number
+        (= 'in1 element) (in1 popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
+        (seq? element) (interpret-one-step (load-exec element popped-state)) ;; Nested isntructions
+        :else ((eval element) popped-state)))
     push-state))
 
 ;; MAYBE
@@ -653,6 +652,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (def test-cases
   '(-2 -1 0 1 2))
+
 ;; MAYBE
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
