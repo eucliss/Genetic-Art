@@ -1,12 +1,13 @@
 (ns Genetic-Art.core
   (:gen-class))
 (use 'mikera.image.core)
+(use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
 
 ;;;;;;;;;;
 ;; Examples
 
-; An example Push state
+; An examplePush state
 (def example-push-state
   {:exec '()
    :integer '(1 2 3 4 5 6 7)
@@ -33,17 +34,11 @@
 ;; Examples
 ;;;;;;;;;;;;;;;;;;;;;;;
 (def image_example
-  '((6,3,4,5),
-    (5, 3, 1, 9),
-    (1, 12, 6, 8),
-    (5, 12, 9, 6))
+  '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)
   )
 
 (def image_example_empty
-  '((0,0,0,0),
-   (0, 0, 0, 0),
-   (0, 0, 0, 0),
-   (0, 0, 0, 0))
+  '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   )
 
 (def empty-push-state
@@ -52,29 +47,24 @@
    :image '()
    :input {}})
 
+(def in-state
+  {:exec '()
+   :integer '()
+   :image '()
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
+
 (def full-state
-  {:exec '(integer_% integer_-)
-   :integer '(4 83 3 4)
-   :image '((0,0,0,0),
-            (0, 0, 0, 0),
-            (0, 0, 0, 0),
-            (0, 0, 0, 0))
-   :input {:in1 '((6,3,4,5),
-            (5, 3, 1, 9),
-            (1, 12, 6, 8),
-            (5, 12, 9, 6))}})
+  {:exec '(1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image '(1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10)
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
 (def div-0-state
   {:exec '(integer_+ integer_-)
    :integer '(2 0 3 4)
-   :image '((0,0,0,0),
-            (0, 0, 0, 0),
-            (0, 0, 0, 0),
-            (0, 0, 0, 0))
-   :input {:in1 '((6,3,4,5),
-            (5, 3, 1, 9),
-            (1, 12, 6, 8),
-            (5, 12, 9, 6))}})
+   :image '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
+   
 ;;;;;;;;;;;;;;;;;;
 ;; Examples end ;;
 ;;;;;;;;;;;;;;;;;;
@@ -82,6 +72,14 @@
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
 ;; state and return another or constant literals.
+
+(def init-instructions
+  (list
+   'in1*
+   'integer_-*
+   1
+   ))
+
 (def instructions
   (list
    'in1  ;; Need more inputs. ...
@@ -89,6 +87,8 @@
    'integer_-
    'integer_*
    'integer_%
+   0
+   1
    ))
 
 (def instruction
@@ -140,7 +140,7 @@
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
-  (= 0 (count (state stack))))
+  (zero? (count (state stack))))
 
 ;; GOOD
 (defn pop-stack
@@ -220,10 +220,15 @@
 (defn in1
   "Pushes the input labeled :in1 on the inputs map onto the :exec stack.
   Can't use make-push-instruction, since :input isn't a stack, but a map."
+  ;; Doesnt pop from the exec stack
   [state]
-  (push-to-stack state      ;; Pop in1 from the exec stack
-                 :exec                        ;; and push :in1 from :input stack
+  (push-to-stack state      
+                 :exec                        
                  ((state :input) :in1)))
+
+(defn in1*
+  [state]
+  (assoc state :image ((state :input) :in1)))
 
 ;; BAD
 ;; I'm thinking for these, we could theoretically +,-,*,/ an int to a row in the image
@@ -239,6 +244,24 @@
   Note: the second integer on the stack should be subtracted from the top integer."
   [state]
   (make-push-instruction state -' [:integer :integer] :integer))
+
+;; If the deducer is greater than the item, return 0, else return x-y
+(defn zero_-
+  [x y]
+  (if (> x y)
+    (-' x y)
+    0))
+;;(zero_- 4 5 ) ;;=> 0
+;;(zero_- 6 5)  ;;=> 1
+
+;; Takes a state and applies subtraction to it getting the item from the integers
+;; If the integer is bigger than the list item, it returns 0
+(defn integer_-*
+  [state]
+  (let [deducer (peek-stack state :integer)]
+    (if (zero? (count (:integer state)))
+      state
+      (pop-stack (assoc state :image (map #(zero_- % deducer) (get state :image))) :integer))))
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
@@ -396,7 +419,7 @@
           popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
       (cond
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
-        (= 'in1 element) (in1 popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
+        (= 'in1 element) (in1* popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
         (seq? element) (interpret-one-step (load-exec element popped-state)) ;; Nested isntructions
         :else ((eval element) popped-state)))
     push-state))
@@ -412,6 +435,11 @@
       (if (empty-stack? state :exec)
           state
           (recur (interpret-one-step state)))))) ;; Recur interpret each step
+
+;; Just for testing really, im calling (interpret-full-state full-state) => state with image (0 0 0 0 0 0 1 2 3 3 ...)
+(defn interpret-full-state
+  [state]
+  (interpret-push-program (get state :exec) (assoc state :exec '())))
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Interpreter End ;;
 ;;;;;;;;;;;;;;;;;;;;;
@@ -514,6 +542,18 @@
     :errors (first error-list)
     :total-error (first error-list)}))
 
+(defn state-to-individual
+  ([state]  ;; Just converts program to individual with no errors
+  {:program (:program state)
+   :image (:image state)
+   :errors '[]
+   :total-error 0})
+  ([state error-list total-error]  ;; Converts a program to an individual with its errors
+   {:program (:program state)
+    :image (:image state)
+    :errors (first error-list)
+    :total-error (first error-list)}))
+
 
 ;;;;;;;;;;;;
 ;; New Population Creation Function
@@ -572,6 +612,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println)
     (printf "Best errors: %s" (best-prog :errors))))
 
+(defn report2
+  [population generation]
+  (println population)
+  (println)
+  (println generation)
+  (println)
+  (println))
+
+                      
+
 ;; MAYBE
 (defn report-more
   "Increased reporting we wanted to see state of our population"
@@ -587,7 +637,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; GOOD
 (defn init-population
   "Initialize a population of random programs of a certain maximum size"
-  [size max-program-size]
+  [size max-program-size instructions]
   ;; Creates individuals with no errors associated with them yet
   (map #(prog-to-individual %) (take size (repeatedly #(make-random-push-program instructions max-program-size)))))
 
@@ -625,14 +675,14 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
    - max-initial-program-size (max size of randomly generated programs)"
   [{:keys [population-size max-generations error-function instructions max-initial-program-size]}]
   (loop [count 0
-         population (map #(error-function %) (init-population population-size max-initial-program-size))]
+         population (map #(error-function %) (init-population population-size max-initial-program-size instructions))]
     (report population count)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
       nil
       (if (= 0 (get (apply min-key #(% :total-error) population) :total-error)) ;; Anyone with error=0?
         :SUCCESS
         (recur (+ count 1) ;; Recur by making new population, and getting errors
-               (map #(error-function (prog-to-individual %)) (get-child-population (map #(error-function %) population) population-size 20))))))) ;; Using a fixed tournament size of 20 for quick conversion
+               (map #(error-function (prog-to-individual %)) (get-child-population (map #(error-function %) population) population-size 10))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
 
 ;;;;;;;;;;
@@ -642,6 +692,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [x]
   (+ (* x x x) x 3))
 
+(def target-image
+  '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 ;; GOOD
 (defn abs
   "Returns the absolute value of a number x"
@@ -650,8 +702,17 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (*' -1 x)
     x))
 
+(def test-cases*
+  '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10)
+  (5,5,5,5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5))
+  )
+
+(def test-cases2
+  '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
+  )
+
 (def test-cases
-  '(-2 -1 0 1 2))
+  (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
 
 ;; MAYBE
 (defn evaluate-one-case
@@ -659,30 +720,41 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [individual state value]
   (interpret-push-program (:program individual) (push-to-stack state :input value)))
 
+(def test-ind
+  (prog-to-individual '(in1* 1 integer_-*)))
+
+(def bad-test-ind
+  (prog-to-individual '(1 in1* in1* integer_-* in1* in1* integer_-* in1* in1* in1* integer_-* integer_-* integer_-*)))
+
+
+
 ;; MAYBE
 ;; PRolly useful comparing on line of the image, needs to be changed probably
 (defn abs-difference-in-solution-lists
   "Computes the differences in the solutions for the input programs, returns errors list"
   ;; Ex: solution:(1 2 3 4), program solution:(4 4 4 4), output of this function: (3 2 1 0)
   [l1 l2]
-  (loop [l1 l1
-         l2 l2
-         final '()]
-    (if (= (count l1) 0)
-      (reverse final)
-      (recur (rest l1)
-             (rest l2)
-             (conj final (abs (- (first l1) (first l2))))))))
+  (if (zero? (count l2))
+    (repeat (count l1) 100000)
+    (loop [l1 l1
+           l2 l2
+           final '()]
+      (if (= (count l1) 0)
+        (reverse final)
+        (recur (rest l1)
+               (rest l2)
+               (conj final (abs (- (first l1) (first l2)))))))))
 
 ;; MAYBE
 ;; Probably going to need to change
 (defn get-solution-list
   "Gets the list of solution for a test case"
   [individual]
-  (map #(if (= (:integer %) '())
-             1000000 ;; Large penalty
-             (first (:integer %)))
-             (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  (map #(get % :image) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  ;;(map #(if (zero? (count (:image %)))
+    ;;         1000000 ;; Large penalty
+      ;;       (get :image %)))
+  ;;           (map #(evaluate-one-case individual empty-push-state %) test-cases))
 
 ;; BAD
 
@@ -717,6 +789,17 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
      :errors errors
      :total-error (reduce + errors)}))
 
+(defn image-error-function
+  [individual]
+  (let [target-list target-image
+        program-list (get-solution-list individual) ;; List solutions for given individual
+        errors (map #(abs-difference-in-solution-lists target-list %) program-list)
+        ;;(abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
+        ]
+    {:program (:program individual)
+     :errors errors
+     :total-error (first (map #(reduce + %) errors ))}))
+
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
 
@@ -727,4 +810,37 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
             :error-function regression-error-function
             :max-generations 100
             :population-size 200
-            :max-initial-program-size 50}))
+            :max-initial-program-size 10}))
+
+
+(defn -image-test
+  [& args]
+  (push-gp {:instructions init-instructions
+            :error-function image-error-function
+            :max-generations 100
+            :population-size 20
+            :max-initial-program-size 15}))
+
+
+
+;; This does some funky stuff but it works
+
+;; I guess we have ot load the image as a buffered image, grab its pixels into a separate variable, and then manipulate that pixel list, and then set it using the set-pixels
+
+;; Basically load the image we want
+(def bi (first (load-images "arrow_up.jpg")))
+
+;; gets the pixels of the image, as an int array
+(def pixels (get-pixels bi))
+
+;; fill some random pixels with colours
+;; I guess this sets first 10  pixels with random colors but im not sure
+(dotimes [i 10]
+  (aset pixels i (rand-colour))) ;; sets a index in a list to a random color, like -3226114
+
+;; update the image with the newly changed pixel values
+(set-pixels bi pixels)
+
+;; view our new work of art
+;; the zoom function will automatically interpolate the pixel values
+(show bi :zoom 10.0 :title "Isn't it beautiful?")
