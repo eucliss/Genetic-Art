@@ -56,13 +56,13 @@
 (def full-state
   {:exec '(1 integer_-* integer_-*)
    :integer '(4 3 3 4)
-   :image '(1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10)
+   :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
 (def div-0-state
   {:exec '(integer_+ integer_-)
    :integer '(2 0 3 4)
-   :image '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+   :image '((0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
    
 ;;;;;;;;;;;;;;;;;;
@@ -228,7 +228,8 @@
 
 (defn in1*
   [state]
-  (assoc state :image ((state :input) :in1)))
+  (push-to-stack state :image ((state :input) :in1)))
+  ;;(assoc state :image ((state :input) :in1)))
 
 ;; BAD
 ;; I'm thinking for these, we could theoretically +,-,*,/ an int to a row in the image
@@ -261,7 +262,8 @@
   (let [deducer (peek-stack state :integer)]
     (if (zero? (count (:integer state)))
       state
-      (pop-stack (assoc state :image (map #(zero_- % deducer) (get state :image))) :integer))))
+      (pop-stack (assoc state :image (concat (list (map #(zero_- % deducer) (first (get state :image)))) (rest (:image state)))) :integer))))
+      
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
@@ -750,7 +752,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (defn get-solution-list
   "Gets the list of solution for a test case"
   [individual]
-  (map #(get % :image) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  (map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
   ;;(map #(if (zero? (count (:image %)))
     ;;         1000000 ;; Large penalty
       ;;       (get :image %)))
