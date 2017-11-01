@@ -4,6 +4,7 @@
 (use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
 
+
 ;;;;;;;;;;
 ;; Examples
 
@@ -57,6 +58,18 @@
   {:exec '(1 integer_-* integer_-*)
    :integer '(4 3 3 4)
    :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
+
+(def buff-state
+  {:exec '(1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "cars.jpg"))
+   :input {:in1 (load-image-resource "arrow_up.jpg")}})
+
+(def test-state
+  {:exec '(1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image '((0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), (4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
 (def div-0-state
@@ -157,6 +170,19 @@
   (if (empty-stack? state stack)
     :no-stack-item
     (first (state stack))))
+
+;;(defn list-to-matrix
+;;  [lst width height]
+;;  ::STUB
+  ;; (into [] lst)
+  ;; (split-at width lst)
+  ;;(into [] (dotimes [i width] 
+;;  (loop [lst (into [] (vector (first (split-at width lst))))
+;;         rest (split-at width lst)]
+;;    (if (empty? rest)
+;;      lst
+ ;;     (recur (split-at 
+ ;; )))))
 
 ;; GOOD
 (defn get-args-from-stacks
@@ -263,7 +289,21 @@
     (if (zero? (count (:integer state)))
       state
       (pop-stack (assoc state :image (concat (list (map #(zero_- % deducer) (first (get state :image)))) (rest (:image state)))) :integer))))
-      
+
+(defn minus_pixels
+  [imag pixels deducer]
+  (dotimes [i (count pixels)] (aset pixels i (zero_- (nth pixels i) deducer)))
+  (set-pixels imag pixels)
+  imag)
+
+(defn integer_-*_buffered
+  [state]
+  (if (zero? (count (:integer state)))
+     state
+     (let [deducer (peek-stack state :integer)
+           imag (first (get state :image))
+           pixels (get-pixels imag)]
+       (pop-stack (assoc state :image (conj (rest (:image state)) (minus_pixels imag pixels deducer))) :integer))))      
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
@@ -323,14 +363,44 @@
   "Splits two input images in half and combines them, half of image A, half of image B.
   Split column is decided randomly here."
   [state]
-  :STUB
-  )
+  (if (< (count (get state :image)) 2)
+    state
+    (let [dimension (/ (int (Math/sqrt (count (first (get state :image))))) 2)]
+      (loop [new-lst '()
+             index 0
+             images (get state :image)]
+        (if (= index (count (first (get state :image))))
+          (assoc state :image (conj (get (pop-stack (pop-stack state :image) :image) :image) new-lst))
+          (if (and (zero? (mod index dimension)) (not (zero? index)))
+            (recur (concat new-lst (list (nth (first (reverse images)) index)))
+                   (+ index 1)
+                   (reverse images))
+            (recur (concat new-lst (list (nth (first images) index)))
+                   (+ index 1)
+                   images)))))))
 
+(def vsplit-state
+  {:exec '(1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image '((0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), (4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7))
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
+
+(first (get (vsplit_combine vsplit-state) :image)) ;; => ( 0 0 4 4 1 1 5 5 2 2 6 6 3 3 7 7)
+
+;; NEED TO ADD RANDOM SPLIT ROW
 (defn hsplit_combine
   "Splits two images horizontally and combines them.
   Split row is decided randomly here."
   [state]
-  :STUB)
+  :STUB
+  (if (< (count (get state :image)) 2)
+    state
+    (let [img1 (peek-stack state :image)
+          img2 (peek-stack (pop-stack state :image) :image)
+          half (quot (count img1) 2)]
+      (assoc state :image (conj (get (pop-stack (pop-stack state :image) :image) :image) (concat (first (split-at half img1)) (nth (split-at half img2) 1)))))))
+
+(first (get (hsplit_combine vsplit-state) :image)) ;; => ( 0 0 0 0 1 1 1 1 6 6 6 6 7 7 7 7)
 
 (defn section-and
   "Takes a state, takes two random rectangles out of
