@@ -276,8 +276,8 @@
 (defn zero_-
   [x y]
   (if (> x y)
-    (-' x y)
-    0))
+   (-' x y)
+   (+' x y)))
 ;;(zero_- 4 5 ) ;;=> 0
 ;;(zero_- 6 5)  ;;=> 1
 
@@ -346,15 +346,40 @@
   [state]
   :STUB)
 
+(def dup-state
+  {:exec '(exec_dup 1 integer_+)
+   :integer '(4 3 3 4)
+   :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
+
 (defn exec_dup
-  ""
+  "Duplicates the first element on the exec stack and places it in front"
   [state]
-  :STUB)
+  :STUB
+  (if (zero? (count (get state :exec)))
+    state
+    (assoc state :exec (conj (get state :exec) (peek-stack state :exec)))
+  ))
+
+(def if-state
+  {:exec '(exec_dup 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}
+   :bool '()})
 
 (defn exec_if
-  ""
+  "If bool stack has true, first item on exec stack, else second item"
   [state]
-  :STUB)
+  :STUB
+  (if (zero? (count (get state :bool))) ;; need enough elements to work with
+    state
+    (if (peek-stack state :bool)
+      ;; remove second element of exec, popping from bool stack also
+      (assoc (pop-stack state :bool) :exec (conj (rest (rest (get state :exec))) (peek-stack state :exec)))
+      ;; remove first element of exec, popping from bool stack also
+      (assoc (pop-stack state :bool) :exec (rest (get state :exec)))
+      )))
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Image manipulation
@@ -436,10 +461,17 @@
   [state]
   :STUB)
 
+(defn rand-color-input
+  [x]
+  (rand-colour))
+
 (defn fuck-shit-stack
   "Completely re-writes a matrix based off nothing but random numbers"
   [state]
-  :STUB)
+  (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
+        imag (first (get state :image))] ;; get image from state
+    (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack 
 
 (defn row_mutate
   "Mutates elements of a random row in A based on a probability.
@@ -455,13 +487,51 @@
 (defn invert_colors
   "Inverts colors of the pic"
   [state]
-  :STUB)
+  :STUB
+  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert)))))
+
+(defn laplace_filter
+  "Applies a laplace filter to the image"
+  [state]
+  :STUB
+  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace)))))
+
+(defn emboss_filter
+  "Applies a emboss filter to the image"
+  [state]
+  :STUB
+  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/emboss)))))
+
+(defn edge_filter
+  "Applies an edge filter to the image"
+  [state]
+  :STUB
+  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge)))))
+
+(defn laplace_filter
+  "Applies a laplace filter to the image"
+  [state]
+  :STUB
+  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace)))))
+
+(defn noise_filter
+  "Applies a noise filter to the image"
+  [state]
+  :STUB
+  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise)))))
 
 (defn scramble_grid
   "Splits the image into smaller rectangles of random size and randomly places all of them in
   a new spot"
   [state]
   :STUB)
+
+(defn scram
+  [i]
+
+  )
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Instructions End ;;
@@ -900,14 +970,14 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; I guess we have ot load the image as a buffered image, grab its pixels into a separate variable, and then manipulate that pixel list, and then set it using the set-pixels
 
 ;; Basically load the image we want
-(def bi (first (load-images "arrow_up.jpg")))
+(def bi (first (load-images "cars.jpg")))
 
 ;; gets the pixels of the image, as an int array
 (def pixels (get-pixels bi))
 
 ;; fill some random pixels with colours
 ;; I guess this sets first 10  pixels with random colors but im not sure
-(dotimes [i 10]
+(dotimes [i (count pixels)]
   (aset pixels i (rand-colour))) ;; sets a index in a list to a random color, like -3226114
 
 ;; update the image with the newly changed pixel values
