@@ -63,11 +63,17 @@
 (def buff-state
   {:exec '(1 integer_-* integer_-*)
    :integer '(4 3 3 4)
+   :image (list (load-image-resource "arrow_up.jpg"))
+   :input {:in1 (load-image-resource "cars.jpg")}})
+
+(def buff-state-cars
+  {:exec '(1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
    :image (list (load-image-resource "cars.jpg"))
    :input {:in1 (load-image-resource "arrow_up.jpg")}})
 
 (def test-state
-  {:exec '(1 integer_-* integer_-*)
+  {:exec '(1 integer_-* integer_-*)q
    :integer '(4 3 3 4)
    :image '((0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), (4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
@@ -277,7 +283,7 @@
   [x y]
   (if (> x y)
    (-' x y)
-   (+' x y)))
+   0))
 ;;(zero_- 4 5 ) ;;=> 0
 ;;(zero_- 6 5)  ;;=> 1
 
@@ -388,7 +394,7 @@
   "Splits two input images in half and combines them, half of image A, half of image B.
   Split column is decided randomly here."
   [state]
-  (if (< (count (get state :image)) 2)
+  (if (< (count (get state :image)) 2)q
     state
     (let [dimension (/ (int (Math/sqrt (count (first (get state :image))))) 2)]
       (loop [new-lst '()
@@ -491,8 +497,8 @@
   (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert)))))
 
 (defn laplace_filter
-  "Applies a laplace filter to the image"
-  [state]
+  "Applies a laplace filter to the image"q
+  [state]q
   :STUB
   (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace)))))
 
@@ -520,16 +526,52 @@
   :STUB
   (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise)))))
 
+(defn fuck-shit-stack
+  "Completely re-writes a matrix based off nothing but random numbers"
+  [state]
+  (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
+        imag (first (get state :image))] ;; get image from state
+    (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack 
+
+(defn three-egg-scramble
+  "Takes a split list and turns it into buffered image from the state"
+  [state lst]
+;;  (println (count lst)))
+  ;;(println (set-pixels (peek-stack state :image) (int-array (apply concat (shuffle lst)))))
+  (let [pixels (int-array (apply concat (shuffle lst)))
+        img (peek-stack state :image)]
+    (set-pixels (peek-stack state :image) (int-array (apply concat (shuffle lst))))
+    state))
+  ;;(assoc state :image (conj (pop-stack state :image) img))))
+                            
+  
+;; Does bad stuff but still isnt perfect, kinda funky
 (defn scramble_grid
   "Splits the image into smaller rectangles of random size and randomly places all of them in
   a new spot"
   [state]
-  :STUB)
+  (if (empty? (get state :image))
+    state
+    (let [img (first (get state :image))
+          wid (quot (width img) 2)
+          hght (quot (height img) 2)]
+      (loop [split_list '()
+             x 0
+             y 0]
+        (if (>= y (* 2 hght))
+          (three-egg-scramble state split_list)
+          (if (>= x (* 2 wid))
+            (recur split_list
+                   0
+                   (+' y hght))
+            (recur (conj split_list (get-pixels (sub-image img x y wid hght)))
+                   (+' x wid)
+                   y)))))))
 
-(defn scram
-  [i]
 
-  )
+;; (concat (shuffle '(1 2 3)) (shuffle '( 4 5 6)))
+;; (set-pixels imag (int-array (map rand-color-input pixels)))
 
 
 
@@ -563,7 +605,7 @@
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
         (= 'in1 element) (in1* popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
         (seq? element) (interpret-one-step (load-exec element popped-state)) ;; Nested isntructions
-        :else ((eval element) popped-state)))
+        :else ((eval element) popped-state)))q
     push-state))
 
 ;; MAYBE
@@ -971,6 +1013,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; Basically load the image we want
 (def bi (first (load-images "cars.jpg")))
+(def bi2 (first (load-images "arrow_up.jpg")))
+
 
 ;; gets the pixels of the image, as an int array
 (def pixels (get-pixels bi))
