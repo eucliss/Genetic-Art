@@ -68,6 +68,13 @@
    :input {:in1 (load-image-resource "cars.jpg")}
    :bool '(true false)})
 
+(def double-image-state-100px
+  {:exec '(noise_filter 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "arrow_up.jpg") (load-image-resource "btnPlus.png"))
+   :input {:in1 (load-image-resource "cars.jpg")}
+   :bool '(true false)})
+
 (def buff-state-cars
   {:exec '(emboss_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
@@ -447,26 +454,44 @@
 
 (first (get (hsplit_combine vsplit-state) :image)) ;; => ( 0 0 0 0 1 1 1 1 6 6 6 6 7 7 7 7)
 
+(defn apply-bit-operators
+  [ls op]
+  (apply #((eval op) % %2) ls))
+
+(defn image-bitwise-helper
+  [state op]
+  (let [img1 (peek-stack state :image)
+        img2 (peek-stack (pop-stack state :image) :image)
+        pixels1 (int-array (get-pixels img1))
+        pixels2 (int-array (get-pixels img2))]
+    (set-pixels img2 (int-array (map #(apply-bit-operators % op) (map list pixels1 pixels2))))
+    (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) ))
+
 (defn section-and
   "Takes a state, takes two random rectangles out of
   two images of random dimensions (same for each image) and performs a bitwise AND between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB)
+  :STUB
+  (image-bitwise-helper double-image-state-100px 'bit-and))
 
 (defn section-or
   "Takes a state, takes two random rectangles out of
   two images of random dimensions (same for each image) and performs a bitwise OR between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB)
+  :STUB
+  (image-bitwise-helper double-image-state-100px 'bit-or))
 
 (defn section-xor
   "Takes a state, takes two random rectangles out of
   two images of random dimensions (same for each image) and performs a bitwise XOR between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB)
+  :STUB
+  (image-bitwise-helper double-image-state-100px 'bit-xor))
+
+;;(show (peek-stack (section-xor double-image-state-100px) :image) :zoom 10.0)
 
 (defn vertical_rotate
   "Rotates the input image vertically by a random number, which is generated here.
@@ -901,9 +926,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;;;;;;;;;;
 ;; Error Functions
 
-(defn target-function
-  [x]
-  (+ (* x x x) x 3))
 
 (def target-image
   '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
@@ -915,20 +937,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (*' -1 x)
     x))
 
-(def test-cases*
-  '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10)
-  (5,5,5,5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5))
-  )
-
-(def test-cases2
-  '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
-  )
-
 (def test-cases-pixels
   (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
 
 (def test-cases
-  (list (first (load-images "arrow_up.jpg"))))
+  (load-images "arrow_up.jpg" "btnPlus.png"))
 
 ;; MAYBE
 (defn evaluate-one-case
@@ -941,8 +954,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (def bad-test-ind
   (prog-to-individual '(1 in1* in1* integer_-* in1* in1* integer_-* in1* in1* in1* integer_-* integer_-* integer_-*)))
-
-
 
 ;; MAYBE
 ;; PRolly useful comparing on line of the image, needs to be changed probably
@@ -1039,7 +1050,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function image-error-function
-            :max-generations 2
+            :max-generations 10
             :population-size 20
             :max-initial-program-size 15}))
 
@@ -1067,4 +1078,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; view our new work of art
 ;; the zoom function will automatically interpolate the pixel values
-(show bi :zoom 10.0 :title "Isn't it beautiful?")
+(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
+
+;;(show (peek-stack (evaluate-one-case (prog-to-individual (make-random-push-program init-instructions 20)) empty-push-state (first test-cases)) :image))
