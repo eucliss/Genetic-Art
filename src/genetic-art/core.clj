@@ -46,7 +46,8 @@
   {:exec '()
    :integer '()
    :image '()
-   :input {}})
+   :input {}
+   :bool '()})
 
 (def in-state
   {:exec '()
@@ -61,19 +62,21 @@
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
 (def buff-state
-  {:exec '(1 integer_-* integer_-*)
+  {:exec '(noise_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
    :image (list (load-image-resource "arrow_up.jpg"))
-   :input {:in1 (load-image-resource "cars.jpg")}})
+   :input {:in1 (load-image-resource "cars.jpg")}
+   :bool '(true false)})
 
 (def buff-state-cars
-  {:exec '(1 integer_-* integer_-*)
+  {:exec '(emboss_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
    :image (list (load-image-resource "cars.jpg"))
-   :input {:in1 (load-image-resource "arrow_up.jpg")}})
+   :input {:in1 (load-image-resource "arrow_up.jpg")}
+   :bool '(true false)})
 
 (def test-state
-  {:exec '(1 integer_-* integer_-*)q
+  {:exec '(1 integer_-* integer_-*)
    :integer '(4 3 3 4)
    :image '((0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), (4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
@@ -95,7 +98,18 @@
 (def init-instructions
   (list
    'in1*
-   'integer_-*
+   'exec_dup
+   'exec_if
+   'fuck-shit-stack
+   'invert_colors
+   'laplace_filter
+   'emboss_filter
+   'edge_filter
+   'laplace_filter
+   'noise_filter
+   'scramble_grid
+   true
+   false
    1
    ))
 
@@ -394,7 +408,7 @@
   "Splits two input images in half and combines them, half of image A, half of image B.
   Split column is decided randomly here."
   [state]
-  (if (< (count (get state :image)) 2)q
+  (if (< (count (get state :image)) 2)
     state
     (let [dimension (/ (int (Math/sqrt (count (first (get state :image))))) 2)]
       (loop [new-lst '()
@@ -474,10 +488,12 @@
 (defn fuck-shit-stack
   "Completely re-writes a matrix based off nothing but random numbers"
   [state]
-  (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
-        imag (first (get state :image))] ;; get image from state
-    (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack 
+  (if (empty? (get state :image))
+    state
+    (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
+          imag (first (get state :image))] ;; get image from state
+      (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
+      (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag))))) ;; replace image in stack 
 
 (defn row_mutate
   "Mutates elements of a random row in A based on a probability.
@@ -494,37 +510,49 @@
   "Inverts colors of the pic"
   [state]
   :STUB
-  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert)))))
-
-(defn laplace_filter
-  "Applies a laplace filter to the image"q
-  [state]q
-  :STUB
-  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace)))))
-
-(defn emboss_filter
-  "Applies a emboss filter to the image"
-  [state]
-  :STUB
-  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/emboss)))))
-
-(defn edge_filter
-  "Applies an edge filter to the image"
-  [state]
-  :STUB
-  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge)))))
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert))))))
 
 (defn laplace_filter
   "Applies a laplace filter to the image"
   [state]
   :STUB
-  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace)))))
+    (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
+
+(defn emboss_filter
+  "Applies a emboss filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/emboss))))))
+
+(defn edge_filter
+  "Applies an edge filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge))))))
+
+(defn laplace_filter
+  "Applies a laplace filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
 
 (defn noise_filter
   "Applies a noise filter to the image"
   [state]
   :STUB
-  (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise)))))
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise))))))
 
 (defn fuck-shit-stack
   "Completely re-writes a matrix based off nothing but random numbers"
@@ -602,10 +630,11 @@
     (let [element (peek-stack push-state :exec)
           popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
       (cond
+        (instance? Boolean element) (push-to-stack popped-state :bool element)
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
         (= 'in1 element) (in1* popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
         (seq? element) (interpret-one-step (load-exec element popped-state)) ;; Nested isntructions
-        :else ((eval element) popped-state)))q
+        :else ((eval element) popped-state)))
     push-state))
 
 ;; MAYBE
@@ -895,8 +924,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
   )
 
-(def test-cases
+(def test-cases-pixels
   (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
+
+(def test-cases
+  (list (first (load-images "arrow_up.jpg"))))
 
 ;; MAYBE
 (defn evaluate-one-case
@@ -973,16 +1005,22 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
      :errors errors
      :total-error (reduce + errors)}))
 
+;;(defn image-error-function
+;;  [individual]
+;;  (let [target-list target-image
+;;        program-list (get-solution-list individual) ;; List solutions for given individual
+;;        errors (map #(abs-difference-in-solution-lists target-list %) program-list)
+        ;;(abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
+;;        ]
+;;    {:program (:program individual)
+;;     :errors errors
+;;     :total-error (first (map #(reduce + %) errors ))}))
+
 (defn image-error-function
   [individual]
-  (let [target-list target-image
-        program-list (get-solution-list individual) ;; List solutions for given individual
-        errors (map #(abs-difference-in-solution-lists target-list %) program-list)
-        ;;(abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
-        ]
     {:program (:program individual)
-     :errors errors
-     :total-error (first (map #(reduce + %) errors ))}))
+     :errors 2
+     :total-error 2})
 
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
@@ -1001,7 +1039,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function image-error-function
-            :max-generations 100
+            :max-generations 2
             :population-size 20
             :max-initial-program-size 15}))
 
