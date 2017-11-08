@@ -46,7 +46,8 @@
   {:exec '()
    :integer '()
    :image '()
-   :input {}})
+   :input {}
+   :bool '()})
 
 (def in-state
   {:exec '()
@@ -61,10 +62,33 @@
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
 (def buff-state
-  {:exec '(1 integer_-* integer_-*)
+  {:exec '(noise_filter 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "arrow_up.jpg"))
+   :input {:in1 (load-image-resource "cars.jpg")}
+   :bool '(true false)})
+
+(def double-image-state-100px
+  {:exec '(noise_filter 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "btnPlus.png") (load-image-resource "arrow_up.jpg"))
+   :input {:in1 (load-image-resource "cars.jpg")}
+   :bool '(true false)})
+
+(defn dub-func-state
+  []
+  {:exec '(noise_filter 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "btnPlus.png") (load-image-resource "arrow_up.jpg"))
+   :input {:in1 (load-image-resource "cars.jpg")}
+   :bool '(true false)})
+
+(def buff-state-cars
+  {:exec '(emboss_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
    :image (list (load-image-resource "cars.jpg"))
-   :input {:in1 (load-image-resource "arrow_up.jpg")}})
+   :input {:in1 (load-image-resource "arrow_up.jpg")}
+   :bool '(true false)})
 
 (def test-state
   {:exec '(1 integer_-* integer_-*)
@@ -89,7 +113,21 @@
 (def init-instructions
   (list
    'in1*
-   'integer_-*
+   'exec_dup
+   'exec_if
+   'fuck-shit-stack
+   'invert_colors
+   'laplace_filter
+   'emboss_filter
+   'edge_filter
+   'laplace_filter
+   'noise_filter
+   'scramble_grid
+   'section-and
+   'section-or
+   'section-xor
+   true
+   false
    1
    ))
 
@@ -276,8 +314,8 @@
 (defn zero_-
   [x y]
   (if (> x y)
-    (-' x y)
-    0))
+   (-' x y)
+   0))
 ;;(zero_- 4 5 ) ;;=> 0
 ;;(zero_- 6 5)  ;;=> 1
 
@@ -346,38 +384,67 @@
   [state]
   :STUB)
 
+(def dup-state
+  {:exec '(exec_dup 1 integer_+)
+   :integer '(4 3 3 4)
+   :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
+
 (defn exec_dup
-  ""
+  "Duplicates the first element on the exec stack and places it in front"
   [state]
-  :STUB)
+  :STUB
+  (if (zero? (count (get state :exec)))
+    state
+    (assoc state :exec (conj (get state :exec) (peek-stack state :exec)))
+  ))
+
+(def if-state
+  {:exec '(exec_dup 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
+   :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}
+   :bool '()})
 
 (defn exec_if
-  ""
+  "If bool stack has true, first item on exec stack, else second item"
   [state]
-  :STUB)
+  :STUB
+  (if (zero? (count (get state :bool))) ;; need enough elements to work with
+    state
+    (if (peek-stack state :bool)
+      ;; remove second element of exec, popping from bool stack also
+      (assoc (pop-stack state :bool) :exec (conj (rest (rest (get state :exec))) (peek-stack state :exec)))
+      ;; remove first element of exec, popping from bool stack also
+      (assoc (pop-stack state :bool) :exec (rest (get state :exec)))
+      )))
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Image manipulation
 
-(defn vsplit_combine
+(defn vsplit_combine_list
   "Splits two input images in half and combines them, half of image A, half of image B.
   Split column is decided randomly here."
-  [state]
-  (if (< (count (get state :image)) 2)
-    state
-    (let [dimension (/ (int (Math/sqrt (count (first (get state :image))))) 2)]
-      (loop [new-lst '()
-             index 0
-             images (get state :image)]
-        (if (= index (count (first (get state :image))))
-          (assoc state :image (conj (get (pop-stack (pop-stack state :image) :image) :image) new-lst))
-          (if (and (zero? (mod index dimension)) (not (zero? index)))
+  [ls1 ls2 rand-index width height]
+  (loop [new-lst '()
+         index 0
+         images (list ls1 ls2)]
+        (if (= index (count ls1))
+          new-lst
+          (if (= index width)
             (recur (concat new-lst (list (nth (first (reverse images)) index)))
                    (+ index 1)
                    (reverse images))
-            (recur (concat new-lst (list (nth (first images) index)))
-                   (+ index 1)
-                   images)))))))
+            (if (and (zero? (mod index rand-index)) (not (zero? index)))
+              (recur (concat new-lst (list (nth (first (reverse images)) index)))
+                     (+ index 1)
+                     (reverse images))
+              (recur (concat new-lst (list (nth (first images) index)))
+                     (+ index 1)
+                     images))))))
+
+;; indx = mod rand index concat reverse
+;; index = width reverse
 
 (def vsplit-state
   {:exec '(1 integer_-* integer_-*)
@@ -385,43 +452,87 @@
    :image '((0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), (4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
-(first (get (vsplit_combine vsplit-state) :image)) ;; => ( 0 0 4 4 1 1 5 5 2 2 6 6 3 3 7 7)
+;;(first (get (vsplit_combine_list vsplit-state) :image)) ;; => ( 0 0 4 4 1 1 5 5 2 2 6 6 3 3 7 7)
 
-;; NEED TO ADD RANDOM SPLIT ROW
-(defn hsplit_combine
+(defn vsplit_helper
+  [state img2 new-list]
+  (println (count new-list))
+  (println (width img2))
+  ;;(set-pixels img2 (int-array new-list))
+  ;;(show img2 :zoom 10.0)
+  (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2))
+
+(defn vsplit_combine
   "Splits two images horizontally and combines them.
   Split row is decided randomly here."
   [state]
-  :STUB
   (if (< (count (get state :image)) 2)
     state
     (let [img1 (peek-stack state :image)
           img2 (peek-stack (pop-stack state :image) :image)
-          half (quot (count img1) 2)]
-      (assoc state :image (conj (get (pop-stack (pop-stack state :image) :image) :image) (concat (first (split-at half img1)) (nth (split-at half img2) 1)))))))
+          rand-index (+ 1 (rand-int (- (width img1) 2)))
+          sub-pixels1 (get-pixels (sub-image img1 0 0 rand-index (height img1)))
+          sub-pixels2 (get-pixels (sub-image img2 rand-index 0 (- (width img1) rand-index) (height img1)))
+          ]
+      (vsplit_helper state img2 (int-array (vsplit_combine_list sub-pixels1 sub-pixels2 rand-index (width img1) (height img1)))))))
+      ;;(set-pixels img2 (int-array (concat sub-pixels1 sub-pixels2)))
+      ;;(show img2 :zoom 10.0)
+      ;;(push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
-(first (get (hsplit_combine vsplit-state) :image)) ;; => ( 0 0 0 0 1 1 1 1 6 6 6 6 7 7 7 7)
+(defn hsplit_combine
+  "Splits two images horizontally and combines them.
+  Split row is decided randomly here."
+  [state]
+  (if (< (count (get state :image)) 2)
+    state
+    (let [img1 (peek-stack state :image)
+          img2 (peek-stack (pop-stack state :image) :image)
+          rand-index (+ 1 (rand-int (- (height img1) 2)))
+          sub-pixels1 (get-pixels (sub-image img1 0 0 (width img1) rand-index))
+          sub-pixels2 (get-pixels (sub-image img2 0 rand-index (width img1) (- (height img1) rand-index)))
+          ]
+      (set-pixels img2 (int-array (concat sub-pixels1 sub-pixels2)))
+      (show img2 :zoom 10.0)
+      (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
+
+(defn apply-bit-operators
+  [ls op]
+  (apply #((eval op) % %2) ls))
+
+(defn image-bitwise-helper
+  [state op]
+  (let [img1 (peek-stack state :image)
+        img2 (peek-stack (pop-stack state :image) :image)
+        pixels1 (int-array (get-pixels img1))
+        pixels2 (int-array (get-pixels img2))]
+    (set-pixels img2 (int-array (map #(apply-bit-operators % op) (map list pixels1 pixels2))))
+    (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) ))
 
 (defn section-and
   "Takes a state, takes two random rectangles out of
   two images of random dimensions (same for each image) and performs a bitwise AND between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB)
+  :STUB
+  (image-bitwise-helper double-image-state-100px 'bit-and))
 
 (defn section-or
   "Takes a state, takes two random rectangles out of
   two images of random dimensions (same for each image) and performs a bitwise OR between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB)
+  :STUB
+  (image-bitwise-helper double-image-state-100px 'bit-or))
 
 (defn section-xor
   "Takes a state, takes two random rectangles out of
   two images of random dimensions (same for each image) and performs a bitwise XOR between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB)
+  :STUB
+  (image-bitwise-helper double-image-state-100px 'bit-xor))
+
+(show (peek-stack (section-and double-image-state-100px) :image) :zoom 10.0)
 
 (defn vertical_rotate
   "Rotates the input image vertically by a random number, which is generated here.
@@ -436,10 +547,19 @@
   [state]
   :STUB)
 
+(defn rand-color-input
+  [x]
+  (rand-colour))
+
 (defn fuck-shit-stack
   "Completely re-writes a matrix based off nothing but random numbers"
   [state]
-  :STUB)
+  (if (empty? (get state :image))
+    state
+    (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
+          imag (first (get state :image))] ;; get image from state
+      (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
+      (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag))))) ;; replace image in stack 
 
 (defn row_mutate
   "Mutates elements of a random row in A based on a probability.
@@ -455,13 +575,99 @@
 (defn invert_colors
   "Inverts colors of the pic"
   [state]
-  :STUB)
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert))))))
 
+(defn laplace_filter
+  "Applies a laplace filter to the image"
+  [state]
+  :STUB
+    (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
+
+(defn emboss_filter
+  "Applies a emboss filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/emboss))))))
+
+(defn edge_filter
+  "Applies an edge filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge))))))
+
+(defn laplace_filter
+  "Applies a laplace filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
+
+(defn noise_filter
+  "Applies a noise filter to the image"
+  [state]
+  :STUB
+  (if (empty? (get state :image))
+    state
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise))))))
+
+(defn fuck-shit-stack
+  "Completely re-writes a matrix based off nothing but random numbers"
+  [state]
+  (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
+        imag (first (get state :image))] ;; get image from state
+    (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack 
+
+(defn three-egg-scramble
+  "Takes a split list and turns it into buffered image from the state"
+  [state lst]
+;;  (println (count lst)))
+  ;;(println (set-pixels (peek-stack state :image) (int-array (apply concat (shuffle lst)))))
+  (let [pixels (int-array (apply concat (shuffle lst)))
+        img (peek-stack state :image)]
+    (set-pixels (peek-stack state :image) (int-array (apply concat (shuffle lst))))
+    state))
+  ;;(assoc state :image (conj (pop-stack state :image) img))))
+                            
+  
+;; Does bad stuff but still isnt perfect, kinda funky
 (defn scramble_grid
   "Splits the image into smaller rectangles of random size and randomly places all of them in
   a new spot"
   [state]
-  :STUB)
+  (if (empty? (get state :image))
+    state
+    (let [img (first (get state :image))
+          wid (quot (width img) 2)
+          hght (quot (height img) 2)]
+      (loop [split_list '()
+             x 0
+             y 0]
+        (if (>= y (* 2 hght))
+          (three-egg-scramble state split_list)
+          (if (>= x (* 2 wid))
+            (recur split_list
+                   0
+                   (+' y hght))
+            (recur (conj split_list (get-pixels (sub-image img x y wid hght)))
+                   (+' x wid)
+                   y)))))))
+
+
+;; (concat (shuffle '(1 2 3)) (shuffle '( 4 5 6)))
+;; (set-pixels imag (int-array (map rand-color-input pixels)))
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Instructions End ;;
@@ -490,6 +696,7 @@
     (let [element (peek-stack push-state :exec)
           popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
       (cond
+        (instance? Boolean element) (push-to-stack popped-state :bool element)
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
         (= 'in1 element) (in1* popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
         (seq? element) (interpret-one-step (load-exec element popped-state)) ;; Nested isntructions
@@ -760,9 +967,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;;;;;;;;;;
 ;; Error Functions
 
-(defn target-function
-  [x]
-  (+ (* x x x) x 3))
 
 (def target-image
   '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
@@ -774,17 +978,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (*' -1 x)
     x))
 
-(def test-cases*
-  '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10)
-  (5,5,5,5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5))
-  )
-
-(def test-cases2
-  '( (1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
-  )
+(def test-cases-pixels
+  (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
 
 (def test-cases
-  (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
+  (load-images "arrow_up.jpg" "btnPlus.png"))
 
 ;; MAYBE
 (defn evaluate-one-case
@@ -797,8 +995,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (def bad-test-ind
   (prog-to-individual '(1 in1* in1* integer_-* in1* in1* integer_-* in1* in1* in1* integer_-* integer_-* integer_-*)))
-
-
 
 ;; MAYBE
 ;; PRolly useful comparing on line of the image, needs to be changed probably
@@ -842,35 +1038,41 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   :STUB
   )
 
-(defn regression-error-function
-  "Takes an individual and evaluates it on some test cases. For each test case,
-  runs program with the input set to :in1 in the :input map part of the Push state.
-  Then, the output is the integer on top of the integer stack in the Push state
-  returned by the interpreter. Computes each error by comparing output of
-  the program to the correct output.
-  Returns the individual with :errors set to the list of errors on each case,
-  and :total-error set to the sum of the errors.
-  Note: You must consider what to do if the program doesn't leave anything
-  on the integer stack."
-  [individual]
-  (let [target-list (map #(target-function %) test-cases) ;; List of solutions for the target function
-        program-list (get-solution-list individual) ;; List solutions for given individual
-        errors (abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
-        ]
-    {:program (:program individual)
-     :errors errors
-     :total-error (reduce + errors)}))
+;(defn regression-error-function
+;  "Takes an individual and evaluates it on some test cases. For each test case,
+;  runs program with the input set to :in1 in the :input map part of the Push state.
+;  Then, the output is the integer on top of the integer stack in the Push state
+;  returned by the interpreter. Computes each error by comparing output of
+;  the program to the correct output.
+;  Returns the individual with :errors set to the list of errors on each case,
+;  and :total-error set to the sum of the errors.
+;  Note: You must consider what to do if the program doesn't leave anything
+;  on the integer stack."
+;  [individual]
+;  (let [target-list (map #(target-function %) test-cases) ;; List of solutions for the target function
+;        program-list (get-solution-list individual) ;; List solutions for given individual
+;        errors (abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
+;        ]
+;    {:program (:program individual)
+;     :errors errors
+;     :total-error (reduce + errors)}))
+
+;;(defn image-error-function
+;;  [individual]
+;;  (let [target-list target-image
+;;        program-list (get-solution-list individual) ;; List solutions for given individual
+;;        errors (map #(abs-difference-in-solution-lists target-list %) program-list)
+        ;;(abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
+;;        ]
+;;    {:program (:program individual)
+;;     :errors errors
+;;     :total-error (first (map #(reduce + %) errors ))}))
 
 (defn image-error-function
   [individual]
-  (let [target-list target-image
-        program-list (get-solution-list individual) ;; List solutions for given individual
-        errors (map #(abs-difference-in-solution-lists target-list %) program-list)
-        ;;(abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
-        ]
     {:program (:program individual)
-     :errors errors
-     :total-error (first (map #(reduce + %) errors ))}))
+     :errors 2
+     :total-error 2})
 
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
@@ -889,7 +1091,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function image-error-function
-            :max-generations 100
+            :max-generations 10
             :population-size 20
             :max-initial-program-size 15}))
 
@@ -900,14 +1102,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; I guess we have ot load the image as a buffered image, grab its pixels into a separate variable, and then manipulate that pixel list, and then set it using the set-pixels
 
 ;; Basically load the image we want
-(def bi (first (load-images "arrow_up.jpg")))
+(def bi (first (load-images "cars.jpg")))
+(def bi2 (first (load-images "arrow_up.jpg")))
+
 
 ;; gets the pixels of the image, as an int array
 (def pixels (get-pixels bi))
 
 ;; fill some random pixels with colours
 ;; I guess this sets first 10  pixels with random colors but im not sure
-(dotimes [i 10]
+(dotimes [i (count pixels)]
   (aset pixels i (rand-colour))) ;; sets a index in a list to a random color, like -3226114
 
 ;; update the image with the newly changed pixel values
@@ -915,4 +1119,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; view our new work of art
 ;; the zoom function will automatically interpolate the pixel values
-(show bi :zoom 10.0 :title "Isn't it beautiful?")
+(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
+
+;;(show (peek-stack (evaluate-one-case (prog-to-individual (make-random-push-program init-instructions 20)) empty-push-state (first test-cases)) :image))
