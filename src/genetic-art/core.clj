@@ -71,7 +71,15 @@
 (def double-image-state-100px
   {:exec '(noise_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
-   :image (list (load-image-resource "arrow_up.jpg") (load-image-resource "btnPlus.png"))
+   :image (list (load-image-resource "btnPlus.png") (load-image-resource "arrow_up.jpg"))
+   :input {:in1 (load-image-resource "cars.jpg")}
+   :bool '(true false)})
+
+(defn dub-func-state
+  []
+  {:exec '(noise_filter 1 integer_-* integer_-*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "btnPlus.png") (load-image-resource "arrow_up.jpg"))
    :input {:in1 (load-image-resource "cars.jpg")}
    :bool '(true false)})
 
@@ -115,6 +123,9 @@
    'laplace_filter
    'noise_filter
    'scramble_grid
+   'section-and
+   'section-or
+   'section-xor
    true
    false
    1
@@ -411,25 +422,29 @@
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Image manipulation
 
-(defn vsplit_combine
+(defn vsplit_combine_list
   "Splits two input images in half and combines them, half of image A, half of image B.
   Split column is decided randomly here."
-  [state]
-  (if (< (count (get state :image)) 2)
-    state
-    (let [dimension (/ (int (Math/sqrt (count (first (get state :image))))) 2)]
-      (loop [new-lst '()
-             index 0
-             images (get state :image)]
-        (if (= index (count (first (get state :image))))
-          (assoc state :image (conj (get (pop-stack (pop-stack state :image) :image) :image) new-lst))
-          (if (and (zero? (mod index dimension)) (not (zero? index)))
+  [ls1 ls2 rand-index width height]
+  (loop [new-lst '()
+         index 0
+         images (list ls1 ls2)]
+        (if (= index (count ls1))
+          new-lst
+          (if (= index width)
             (recur (concat new-lst (list (nth (first (reverse images)) index)))
                    (+ index 1)
                    (reverse images))
-            (recur (concat new-lst (list (nth (first images) index)))
-                   (+ index 1)
-                   images)))))))
+            (if (and (zero? (mod index rand-index)) (not (zero? index)))
+              (recur (concat new-lst (list (nth (first (reverse images)) index)))
+                     (+ index 1)
+                     (reverse images))
+              (recur (concat new-lst (list (nth (first images) index)))
+                     (+ index 1)
+                     images))))))
+
+;; indx = mod rand index concat reverse
+;; index = width reverse
 
 (def vsplit-state
   {:exec '(1 integer_-* integer_-*)
@@ -437,22 +452,48 @@
    :image '((0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3), (4,4,4,4,5,5,5,5,6,6,6,6,7,7,7,7))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
-(first (get (vsplit_combine vsplit-state) :image)) ;; => ( 0 0 4 4 1 1 5 5 2 2 6 6 3 3 7 7)
+;;(first (get (vsplit_combine_list vsplit-state) :image)) ;; => ( 0 0 4 4 1 1 5 5 2 2 6 6 3 3 7 7)
 
-;; NEED TO ADD RANDOM SPLIT ROW
-(defn hsplit_combine
+(defn vsplit_helper
+  [state img2 new-list]
+  (println (count new-list))
+  (println (width img2))
+  ;;(set-pixels img2 (int-array new-list))
+  ;;(show img2 :zoom 10.0)
+  (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2))
+
+(defn vsplit_combine
   "Splits two images horizontally and combines them.
   Split row is decided randomly here."
   [state]
-  :STUB
   (if (< (count (get state :image)) 2)
     state
     (let [img1 (peek-stack state :image)
           img2 (peek-stack (pop-stack state :image) :image)
-          half (quot (count img1) 2)]
-      (assoc state :image (conj (get (pop-stack (pop-stack state :image) :image) :image) (concat (first (split-at half img1)) (nth (split-at half img2) 1)))))))
+          rand-index (+ 1 (rand-int (- (width img1) 2)))
+          sub-pixels1 (get-pixels (sub-image img1 0 0 rand-index (height img1)))
+          sub-pixels2 (get-pixels (sub-image img2 rand-index 0 (- (width img1) rand-index) (height img1)))
+          ]
+      (vsplit_helper state img2 (int-array (vsplit_combine_list sub-pixels1 sub-pixels2 rand-index (width img1) (height img1)))))))
+      ;;(set-pixels img2 (int-array (concat sub-pixels1 sub-pixels2)))
+      ;;(show img2 :zoom 10.0)
+      ;;(push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
-(first (get (hsplit_combine vsplit-state) :image)) ;; => ( 0 0 0 0 1 1 1 1 6 6 6 6 7 7 7 7)
+(defn hsplit_combine
+  "Splits two images horizontally and combines them.
+  Split row is decided randomly here."
+  [state]
+  (if (< (count (get state :image)) 2)
+    state
+    (let [img1 (peek-stack state :image)
+          img2 (peek-stack (pop-stack state :image) :image)
+          rand-index (+ 1 (rand-int (- (height img1) 2)))
+          sub-pixels1 (get-pixels (sub-image img1 0 0 (width img1) rand-index))
+          sub-pixels2 (get-pixels (sub-image img2 0 rand-index (width img1) (- (height img1) rand-index)))
+          ]
+      (set-pixels img2 (int-array (concat sub-pixels1 sub-pixels2)))
+      (show img2 :zoom 10.0)
+      (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
 (defn apply-bit-operators
   [ls op]
@@ -491,7 +532,7 @@
   :STUB
   (image-bitwise-helper double-image-state-100px 'bit-xor))
 
-;;(show (peek-stack (section-xor double-image-state-100px) :image) :zoom 10.0)
+(show (peek-stack (section-and double-image-state-100px) :image) :zoom 10.0)
 
 (defn vertical_rotate
   "Rotates the input image vertically by a random number, which is generated here.
@@ -997,24 +1038,24 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   :STUB
   )
 
-(defn regression-error-function
-  "Takes an individual and evaluates it on some test cases. For each test case,
-  runs program with the input set to :in1 in the :input map part of the Push state.
-  Then, the output is the integer on top of the integer stack in the Push state
-  returned by the interpreter. Computes each error by comparing output of
-  the program to the correct output.
-  Returns the individual with :errors set to the list of errors on each case,
-  and :total-error set to the sum of the errors.
-  Note: You must consider what to do if the program doesn't leave anything
-  on the integer stack."
-  [individual]
-  (let [target-list (map #(target-function %) test-cases) ;; List of solutions for the target function
-        program-list (get-solution-list individual) ;; List solutions for given individual
-        errors (abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
-        ]
-    {:program (:program individual)
-     :errors errors
-     :total-error (reduce + errors)}))
+;(defn regression-error-function
+;  "Takes an individual and evaluates it on some test cases. For each test case,
+;  runs program with the input set to :in1 in the :input map part of the Push state.
+;  Then, the output is the integer on top of the integer stack in the Push state
+;  returned by the interpreter. Computes each error by comparing output of
+;  the program to the correct output.
+;  Returns the individual with :errors set to the list of errors on each case,
+;  and :total-error set to the sum of the errors.
+;  Note: You must consider what to do if the program doesn't leave anything
+;  on the integer stack."
+;  [individual]
+;  (let [target-list (map #(target-function %) test-cases) ;; List of solutions for the target function
+;        program-list (get-solution-list individual) ;; List solutions for given individual
+;        errors (abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
+;        ]
+;    {:program (:program individual)
+;     :errors errors
+;     :total-error (reduce + errors)}))
 
 ;;(defn image-error-function
 ;;  [individual]
