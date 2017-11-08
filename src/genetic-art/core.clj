@@ -1,6 +1,10 @@
 (ns Genetic-Art.core
   (:gen-class))
-(use 'mikera.image.core)
+(use 'clojure.core.matrix)
+(use 'clojure.core.matrix.operators)
+(set-current-implementation :vectorz)
+
+(require '[mikera.image.core :as image_core])
 (use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
 
