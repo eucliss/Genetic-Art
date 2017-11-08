@@ -1,10 +1,14 @@
 (ns Genetic-Art.core
   (:gen-class))
-(use 'clojure.core.matrix)
-(use 'clojure.core.matrix.operators)
-(set-current-implementation :vectorz)
+;(use 'clojure.core.matrix)
+;(use 'clojure.core.matrix.operators)
+;(set-current-implementation :vectorz)
+(require '[clojure.core.matrix :as m])
+(require '[clojure.core.matrix.operators :as m-ops])
+(m/set-current-implementation :vectorz)
 
-(require '[mikera.image.core :as image_core])
+
+(use 'mikera.image.core)
 (use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
 
@@ -68,7 +72,7 @@
 (def buff-state
   {:exec '(noise_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
-   :image (list (load-image-resource "arrow_up.jpg"))
+   :image (list (load-image-resource "arrow_up.jpg")) 
    :input {:in1 (load-image-resource "cars.jpg")}
    :bool '(true false)})
 
@@ -1081,14 +1085,14 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
 
-(defn -main
-  "Runs push-gp, giving it a map of arguments."
-  [& args]
-  (push-gp {:instructions instructions
-            :error-function regression-error-function
-            :max-generations 100
-            :population-size 200
-            :max-initial-program-size 10}))
+;(defn -main
+ ; "Runs push-gp, giving it a map of arguments."
+;  [& args]
+  ;(push-gp {:instructions instructions
+   ;         :error-function regression-error-function
+    ;        :max-generations 100
+     ;       :population-size 200
+      ;:max-initial-program-size 10}))
 
 
 (defn -image-test
