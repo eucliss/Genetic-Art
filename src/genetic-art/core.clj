@@ -1,12 +1,8 @@
 (ns Genetic-Art.core
   (:gen-class))
-;(use 'clojure.core.matrix)
-;(use 'clojure.core.matrix.operators)
-;(set-current-implementation :vectorz)
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
 (m/set-current-implementation :vectorz)
-
 
 (use 'mikera.image.core)
 (use 'mikera.image.colours)
@@ -25,7 +21,7 @@
 
 ; An example Push program
 (def example-push-program
-  '(4 5 integer_+ integer_*))
+  '(in2 in1* hsplit_combine invert_colors))
 
 (def example-push-program-input
   '(in1))
@@ -121,6 +117,7 @@
 (def init-instructions
   (list
    'in1*
+   'in2
    'exec_dup
    'exec_if
    'fuck-shit-stack
@@ -275,6 +272,10 @@
           (println)
           (recur (inc x)))))
 
+(defn image_to_matrix
+  [img]
+  (m/matrix (into [] (map #(into [] %)(partition (width img) (get-pixels img))))))
+
 ;;;;;;;;;;;;;;;;;;;
 ;; Utilities End ;;
 ;;;;;;;;;;;;;;;;;;;
@@ -299,6 +300,9 @@
                  ((state :input) :in1)))
 
 (defn in1*
+  [state]
+  (push-to-stack state :image ((state :input) :in1)))
+(defn in2
   [state]
   (push-to-stack state :image ((state :input) :in1)))
   ;;(assoc state :image ((state :input) :in1)))
@@ -977,7 +981,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 
 (def target-image
-  '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+  (load-image-resource "exp.jpg"))
+
 ;; GOOD
 (defn abs
   "Returns the absolute value of a number x"
@@ -992,11 +997,20 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (def test-cases
   (load-images "arrow_up.jpg" "btnPlus.png"))
 
+(defn multiple-inputs
+  [state lst]
+  (loop [iter 0
+         state state]
+    (if (= iter (count lst))
+      state
+      (recur (+ 1 iter)
+             (push-to-stack state :input (nth lst iter))))))
+
 ;; MAYBE
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
   [individual state value]
-  (interpret-push-program (:program individual) (push-to-stack state :input value)))
+  (interpret-push-program (:program individual) (multiple-inputs empty-push-state test-cases)))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1023,28 +1037,64 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; MAYBE
 ;; Probably going to need to change
-(defn get-solution-list
+(defn get-solution
   "Gets the list of solution for a test case"
   [individual]
-  (map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  (evaluate-one-case individual empty-push-state test-cases))
+;  (map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  ;(map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
   ;;(map #(if (zero? (count (:image %)))
     ;;         1000000 ;; Large penalty
       ;;       (get :image %)))
   ;;           (map #(evaluate-one-case individual empty-push-state %) test-cases))
 
-;; BAD
-
-(defn determinant
-  "Returns the determinant of a matrix"
-  [A]
-  :STUB
-  )
 
 (defn determinant-error
   "Returns the determinant error for a given matrix based off the ideal matrix"
   [A B]
   :STUB
   )
+
+
+(defn need
+  []
+  (prog-to-individual (make-random-push-program init-instructions 20)))  
+
+(defn image-determinant
+  [img]
+  (m/det (image_to_matrix img)))
+
+(defn sectionalize
+  [img]
+  
+  (let [wid (quot (width img) 5)
+        hght (quot (height img) 5)]
+    (loop [split_list '()
+           x 0
+           y 0]
+      (if (>= y (* 5 hght))
+        (reverse split_list)
+        (if (>= x (* 5 wid))
+          (recur split_list
+                 0
+                 (+' y hght))
+          (recur (conj split_list (sub-image img x y wid hght))
+                 (+' x wid)
+                 y))))))
+
+(def indddd
+  (prog-to-individual example-push-program))
+  
+
+;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
+(defn Euclidean-error-function
+  [individual]
+  (let [target-list (map image-determinant (sectionalize target-image))
+        program-list (map image-determinant (sectionalize (peek-stack (get-solution individual) :image))) ;; List solutions for given individual
+        errors (abs-difference-in-solution-lists target-list program-list)]
+    {:program (:program individual)
+     :errors errors
+     :total-error (reduce + errors)}))
 
 ;(defn regression-error-function
 ;  "Takes an individual and evaluates it on some test cases. For each test case,
@@ -1098,9 +1148,9 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (defn -image-test
   [& args]
   (push-gp {:instructions init-instructions
-            :error-function image-error-function
-            :max-generations 10
-            :population-size 20
+            :error-function Euclidean-error-function
+            :max-generations 100
+            :population-size 50
             :max-initial-program-size 15}))
 
 
