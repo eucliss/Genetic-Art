@@ -118,10 +118,6 @@
   (list
    'in1*
    'in2
-   'in1*
-   'in2
-   'in1*
-   'in2
    ;'fuck-shit-stack
    'exec_dup
    'exec_if
@@ -308,7 +304,7 @@
   (push-to-stack state :image ((state :input) :in1)))
 (defn in2
   [state]
-  (push-to-stack state :image ((state :input) :in1)))
+  (push-to-stack state :image ((state :input) :in2)))
   ;;(assoc state :image ((state :input) :in1)))
 
 ;; BAD
@@ -1012,6 +1008,9 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (def test-cases
   (load-images "arrow_up.jpg" "btnPlus.png"))
 
+(def test-cases2
+  (load-images "cars.jpg" "cars.jpg"))
+
 (defn multiple-inputs
   [state lst]
   (loop [iter 0
@@ -1109,7 +1108,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (let [target-list (map image-determinant (sectionalize target-image))
         result (peek-stack (get-solution individual) :image)
         program-list (if (identical? result :no-stack-item)
-                       (repeat (count target-list) 0)
+                       (repeat (count target-list) 10000000000000000)
                        (map image-determinant (sectionalize result))) ;; List solutions for given individual
         errors (abs-difference-in-solution-lists target-list program-list)]
     {:program (:program individual)
@@ -1170,12 +1169,13 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
             :max-generations 10
-            :population-size 8
+            :population-size 6
             :max-initial-program-size 15}))
 
 (def one-prog
-  (prog-to-individual '(laplace_filter laplace_filter laplace_filter laplace_filter laplace_filter section-and laplace_filter laplace_filter laplace_filter section-and laplace_filter in1* in1* section-and section-and laplace_filter section-and section-and in1* in1* laplace_filter section-and in2 section-and in1* laplace_filter laplace_filter section-and in1* in1* laplace_filter in1* laplace_filter section-and section-and section-and laplace_filter laplace_filter laplace_filter laplace_filter laplace_filter section-and laplace_filter laplace_filter section-and in1* laplace_filter laplace_filter laplace_filter laplace_filter section-and section-and false laplace_filter laplace_filter laplace_filter section-and laplace_filter in2 section-and in2 laplace_filter section-and laplace_filter section-and laplace_filter laplace_filter false laplace_filter section-and section-and section-and laplace_filter laplace_filter section-and section-and false in1* section-and section-and laplace_filter section-and laplace_filter laplace_filter laplace_filter laplace_filter laplace_filter in2 laplace_filter in2 in2 section-and in1* section-and laplace_filter laplace_filter in2 section-and section-and laplace_filter section-and in1* section-and laplace_filter section-and in2 section-and section-and section-and laplace_filter laplace_filter laplace_filter in2 in2 in2 laplace_filter laplace_filter section-and in2 in2 laplace_filter)
+  (prog-to-individual '(section-and emboss_filter emboss_filter exec_if scramble_grid section-and 1 emboss_filter scramble_grid scramble_grid emboss_filter edge_filter 1 emboss_filter edge_filter emboss_filter exec_if emboss_filter section-and section-and)
                       ))
+                 
 
 
 
