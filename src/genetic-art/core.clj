@@ -1,5 +1,9 @@
 (ns Genetic-Art.core
   (:gen-class))
+(require '[clojure.core.matrix :as m])
+(require '[clojure.core.matrix.operators :as m-ops])
+(m/set-current-implementation :vectorz)
+
 (use 'mikera.image.core)
 (use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
@@ -17,7 +21,7 @@
 
 ; An example Push program
 (def example-push-program
-  '(4 5 integer_+ integer_*))
+  '(in2 in1* hsplit_combine invert_colors))
 
 (def example-push-program-input
   '(in1))
@@ -101,7 +105,7 @@
    :integer '(2 0 3 4)
    :image '((0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
-   
+
 ;;;;;;;;;;;;;;;;;;
 ;; Examples end ;;
 ;;;;;;;;;;;;;;;;;;
@@ -113,9 +117,10 @@
 (def init-instructions
   (list
    'in1*
+   'in2
+   ;'fuck-shit-stack
    'exec_dup
    'exec_if
-   'fuck-shit-stack
    'invert_colors
    'laplace_filter
    'emboss_filter
@@ -126,6 +131,7 @@
    'section-and
    'section-or
    'section-xor
+   'hsplit_combine
    true
    false
    1
@@ -214,12 +220,12 @@
 ;;  ::STUB
   ;; (into [] lst)
   ;; (split-at width lst)
-  ;;(into [] (dotimes [i width] 
+  ;;(into [] (dotimes [i width]
 ;;  (loop [lst (into [] (vector (first (split-at width lst))))
 ;;         rest (split-at width lst)]
 ;;    (if (empty? rest)
 ;;      lst
- ;;     (recur (split-at 
+ ;;     (recur (split-at
  ;; )))))
 
 ;; GOOD
@@ -264,8 +270,11 @@
             (print (get-pixel image x y) "")
             (recur (inc y))))
     (when (< x (dec (width image)))
-          (println)
           (recur (inc x)))))
+
+(defn image_to_matrix
+  [img]
+  (m/matrix (into [] (map #(into [] %)(partition (width img) (get-pixels img))))))
 
 ;;;;;;;;;;;;;;;;;;;
 ;; Utilities End ;;
@@ -286,13 +295,16 @@
   Can't use make-push-instruction, since :input isn't a stack, but a map."
   ;; Doesnt pop from the exec stack
   [state]
-  (push-to-stack state      
-                 :exec                        
+  (push-to-stack state
+                 :exec
                  ((state :input) :in1)))
 
 (defn in1*
   [state]
   (push-to-stack state :image ((state :input) :in1)))
+(defn in2
+  [state]
+  (push-to-stack state :image ((state :input) :in2)))
   ;;(assoc state :image ((state :input) :in1)))
 
 ;; BAD
@@ -341,7 +353,7 @@
      (let [deducer (peek-stack state :integer)
            imag (first (get state :image))
            pixels (get-pixels imag)]
-       (pop-stack (assoc state :image (conj (rest (:image state)) (minus_pixels imag pixels deducer))) :integer))))      
+       (pop-stack (assoc state :image (conj (rest (:image state)) (minus_pixels imag pixels deducer))) :integer))))
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
@@ -501,12 +513,14 @@
 
 (defn image-bitwise-helper
   [state op]
-  (let [img1 (peek-stack state :image)
-        img2 (peek-stack (pop-stack state :image) :image)
-        pixels1 (int-array (get-pixels img1))
-        pixels2 (int-array (get-pixels img2))]
-    (set-pixels img2 (int-array (map #(apply-bit-operators % op) (map list pixels1 pixels2))))
-    (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) ))
+  (if (>= 2 (count (get state :image)))
+    state
+    (let [img1 (peek-stack state :image)
+          img2 (peek-stack (pop-stack state :image) :image)
+          pixels1 (int-array (get-pixels img1))
+          pixels2 (int-array (get-pixels img2))]
+      (set-pixels img2 (int-array (map #(apply-bit-operators % op) (map list pixels1 pixels2))))
+      (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
 (defn section-and
   "Takes a state, takes two random rectangles out of
@@ -514,7 +528,7 @@
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
   :STUB
-  (image-bitwise-helper double-image-state-100px 'bit-and))
+  (image-bitwise-helper state 'bit-and))
 
 (defn section-or
   "Takes a state, takes two random rectangles out of
@@ -522,7 +536,7 @@
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
   :STUB
-  (image-bitwise-helper double-image-state-100px 'bit-or))
+  (image-bitwise-helper state 'bit-or))
 
 (defn section-xor
   "Takes a state, takes two random rectangles out of
@@ -530,7 +544,7 @@
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
   :STUB
-  (image-bitwise-helper double-image-state-100px 'bit-xor))
+  (image-bitwise-helper state 'bit-xor))
 
 (show (peek-stack (section-and double-image-state-100px) :image) :zoom 10.0)
 
@@ -559,7 +573,7 @@
     (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
           imag (first (get state :image))] ;; get image from state
       (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
-      (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag))))) ;; replace image in stack 
+      (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag))))) ;; replace image in stack
 
 (defn row_mutate
   "Mutates elements of a random row in A based on a probability.
@@ -626,7 +640,7 @@
   (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
         imag (first (get state :image))] ;; get image from state
     (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack 
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack
 
 (defn three-egg-scramble
   "Takes a split list and turns it into buffered image from the state"
@@ -638,8 +652,8 @@
     (set-pixels (peek-stack state :image) (int-array (apply concat (shuffle lst))))
     state))
   ;;(assoc state :image (conj (pop-stack state :image) img))))
-                            
-  
+
+
 ;; Does bad stuff but still isnt perfect, kinda funky
 (defn scramble_grid
   "Splits the image into smaller rectangles of random size and randomly places all of them in
@@ -891,6 +905,15 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println)
     (printf "Best errors: %s" (best-prog :errors))))
 
+(defn report3
+  [population generation]
+  (println)
+  (println "-------------------------------------------------------")
+  (printf  "                    Report for Generation %s           " generation)
+  (println)
+  (println "-------------------------------------------------------")
+  )
+
 (defn report2
   [population generation]
   (println population)
@@ -899,7 +922,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (println)
   (println))
 
-                      
+
 
 ;; MAYBE
 (defn report-more
@@ -923,7 +946,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (defn load-images
   "Loads a bunch of BufferedImages into a list from
   a bunch of image file names"
-  [& images]  
+  [& images]
   (map #(load-image-resource %) images))
 
 ;; MAYBE
@@ -957,7 +980,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
          population (map #(error-function %) (init-population population-size max-initial-program-size instructions))]
     (report population count)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
-      nil
+      (println population)
       (if (= 0 (get (apply min-key #(% :total-error) population) :total-error)) ;; Anyone with error=0?
         :SUCCESS
         (recur (+ count 1) ;; Recur by making new population, and getting errors
@@ -969,7 +992,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 
 (def target-image
-  '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+  (load-image-resource "exp.jpg"))
+
 ;; GOOD
 (defn abs
   "Returns the absolute value of a number x"
@@ -984,11 +1008,23 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (def test-cases
   (load-images "arrow_up.jpg" "btnPlus.png"))
 
+(def test-cases2
+  (load-images "cars.jpg" "cars.jpg"))
+
+(defn multiple-inputs
+  [state lst]
+  (loop [iter 0
+         state state]
+    (if (= iter (count lst))
+      state
+      (recur (+ 1 iter)
+             (push-to-stack state :input (nth lst iter))))))
+
 ;; MAYBE
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
   [individual state value]
-  (interpret-push-program (:program individual) (push-to-stack state :input value)))
+  (interpret-push-program (:program individual) (multiple-inputs empty-push-state test-cases)))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1015,28 +1051,69 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; MAYBE
 ;; Probably going to need to change
-(defn get-solution-list
+(defn get-solution
   "Gets the list of solution for a test case"
   [individual]
-  (map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  (evaluate-one-case individual empty-push-state test-cases))
+;  (map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
+  ;(map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
   ;;(map #(if (zero? (count (:image %)))
     ;;         1000000 ;; Large penalty
       ;;       (get :image %)))
   ;;           (map #(evaluate-one-case individual empty-push-state %) test-cases))
 
-;; BAD
-
-(defn determinant
-  "Returns the determinant of a matrix"
-  [A]
-  :STUB
-  )
 
 (defn determinant-error
   "Returns the determinant error for a given matrix based off the ideal matrix"
   [A B]
   :STUB
   )
+
+
+(defn need
+  []
+  (prog-to-individual (make-random-push-program init-instructions 20)))
+
+(defn image-determinant
+  [img]
+  (m/det (image_to_matrix img)))
+
+(defn sectionalize
+  [img]
+  (let [wid (quot (width img) 5)
+        hght (quot (height img) 5)]
+    (loop [split_list '()
+           x 0
+           y 0]
+      (if (>= y (* 5 hght))
+        (reverse split_list)
+        (if (>= x (* 5 wid))
+          (recur split_list
+                 0
+                 (+' y hght))
+          (recur (conj split_list (sub-image img x y wid hght))
+                 (+' x wid)
+                 y))))))
+
+(def indddd
+  (prog-to-individual example-push-program))
+
+(def shit-prog
+  (prog-to-individual '(section-xor 1 section-and invert_colors scramble_grid invert_colors section-and section-or 1 laplace_filter emboss_filter scramble_grid)))
+
+
+;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
+(defn Euclidean-error-function
+  [individual]
+  (let [target-list (map image-determinant (sectionalize target-image))
+        result (peek-stack (get-solution individual) :image)
+        program-list (if (identical? result :no-stack-item)
+                       (repeat (count target-list) 10000000000000000)
+                       (map image-determinant (sectionalize result))) ;; List solutions for given individual
+        errors (abs-difference-in-solution-lists target-list program-list)]
+    {:program (:program individual)
+     :errors errors
+     :total-error (reduce + errors)}))
 
 ;(defn regression-error-function
 ;  "Takes an individual and evaluates it on some test cases. For each test case,
@@ -1077,23 +1154,28 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;;;;;;;;;;
 ;; The main function. Uses some problem-specific functions.
 
-(defn -main
-  "Runs push-gp, giving it a map of arguments."
-  [& args]
-  (push-gp {:instructions instructions
-            :error-function regression-error-function
-            :max-generations 100
-            :population-size 200
-            :max-initial-program-size 10}))
+;(defn -main
+ ; "Runs push-gp, giving it a map of arguments."
+;  [& args]
+  ;(push-gp {:instructions instructions
+   ;         :error-function regression-error-function
+    ;        :max-generations 100
+     ;       :population-size 200
+      ;:max-initial-program-size 10}))
 
 
 (defn -image-test
   [& args]
   (push-gp {:instructions init-instructions
-            :error-function image-error-function
+            :error-function Euclidean-error-function
             :max-generations 10
-            :population-size 20
+            :population-size 6
             :max-initial-program-size 15}))
+
+(def one-prog
+  (prog-to-individual '(section-and emboss_filter emboss_filter exec_if scramble_grid section-and 1 emboss_filter scramble_grid scramble_grid emboss_filter edge_filter 1 emboss_filter edge_filter emboss_filter exec_if emboss_filter section-and section-and)
+                      ))
+                 
 
 
 
