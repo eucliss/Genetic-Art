@@ -68,7 +68,7 @@
 (def buff-state
   {:exec '(noise_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
-   :image (list (load-image-resource "arrow_up.jpg")) 
+   :image (list (load-image-resource "arrow_up.jpg"))
    :input {:in1 (load-image-resource "cars.jpg")}
    :bool '(true false)})
 
@@ -105,7 +105,7 @@
    :integer '(2 0 3 4)
    :image '((0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
-   
+
 ;;;;;;;;;;;;;;;;;;
 ;; Examples end ;;
 ;;;;;;;;;;;;;;;;;;
@@ -118,9 +118,13 @@
   (list
    'in1*
    'in2
+   'in1*
+   'in2
+   'in1*
+   'in2
+   ;'fuck-shit-stack
    'exec_dup
    'exec_if
-   'fuck-shit-stack
    'invert_colors
    'laplace_filter
    'emboss_filter
@@ -131,6 +135,7 @@
    'section-and
    'section-or
    'section-xor
+   'hsplit_combine
    true
    false
    1
@@ -219,12 +224,12 @@
 ;;  ::STUB
   ;; (into [] lst)
   ;; (split-at width lst)
-  ;;(into [] (dotimes [i width] 
+  ;;(into [] (dotimes [i width]
 ;;  (loop [lst (into [] (vector (first (split-at width lst))))
 ;;         rest (split-at width lst)]
 ;;    (if (empty? rest)
 ;;      lst
- ;;     (recur (split-at 
+ ;;     (recur (split-at
  ;; )))))
 
 ;; GOOD
@@ -269,7 +274,6 @@
             (print (get-pixel image x y) "")
             (recur (inc y))))
     (when (< x (dec (width image)))
-          (println)
           (recur (inc x)))))
 
 (defn image_to_matrix
@@ -295,8 +299,8 @@
   Can't use make-push-instruction, since :input isn't a stack, but a map."
   ;; Doesnt pop from the exec stack
   [state]
-  (push-to-stack state      
-                 :exec                        
+  (push-to-stack state
+                 :exec
                  ((state :input) :in1)))
 
 (defn in1*
@@ -353,7 +357,7 @@
      (let [deducer (peek-stack state :integer)
            imag (first (get state :image))
            pixels (get-pixels imag)]
-       (pop-stack (assoc state :image (conj (rest (:image state)) (minus_pixels imag pixels deducer))) :integer))))      
+       (pop-stack (assoc state :image (conj (rest (:image state)) (minus_pixels imag pixels deducer))) :integer))))
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
@@ -513,12 +517,14 @@
 
 (defn image-bitwise-helper
   [state op]
-  (let [img1 (peek-stack state :image)
-        img2 (peek-stack (pop-stack state :image) :image)
-        pixels1 (int-array (get-pixels img1))
-        pixels2 (int-array (get-pixels img2))]
-    (set-pixels img2 (int-array (map #(apply-bit-operators % op) (map list pixels1 pixels2))))
-    (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) ))
+  (if (>= 2 (count (get state :image)))
+    state
+    (let [img1 (peek-stack state :image)
+          img2 (peek-stack (pop-stack state :image) :image)
+          pixels1 (int-array (get-pixels img1))
+          pixels2 (int-array (get-pixels img2))]
+      (set-pixels img2 (int-array (map #(apply-bit-operators % op) (map list pixels1 pixels2))))
+      (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
 (defn section-and
   "Takes a state, takes two random rectangles out of
@@ -526,7 +532,7 @@
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
   :STUB
-  (image-bitwise-helper double-image-state-100px 'bit-and))
+  (image-bitwise-helper state 'bit-and))
 
 (defn section-or
   "Takes a state, takes two random rectangles out of
@@ -534,7 +540,7 @@
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
   :STUB
-  (image-bitwise-helper double-image-state-100px 'bit-or))
+  (image-bitwise-helper state 'bit-or))
 
 (defn section-xor
   "Takes a state, takes two random rectangles out of
@@ -542,7 +548,7 @@
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
   :STUB
-  (image-bitwise-helper double-image-state-100px 'bit-xor))
+  (image-bitwise-helper state 'bit-xor))
 
 (show (peek-stack (section-and double-image-state-100px) :image) :zoom 10.0)
 
@@ -571,7 +577,7 @@
     (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
           imag (first (get state :image))] ;; get image from state
       (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
-      (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag))))) ;; replace image in stack 
+      (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag))))) ;; replace image in stack
 
 (defn row_mutate
   "Mutates elements of a random row in A based on a probability.
@@ -638,7 +644,7 @@
   (let [pixels (get-pixels (first (get state :image))) ;; get pixel list
         imag (first (get state :image))] ;; get image from state
     (set-pixels imag (int-array (map rand-color-input pixels))) ;; set pixels in pixel list, and then write the list to the image
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack 
+    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) imag)))) ;; replace image in stack
 
 (defn three-egg-scramble
   "Takes a split list and turns it into buffered image from the state"
@@ -650,8 +656,8 @@
     (set-pixels (peek-stack state :image) (int-array (apply concat (shuffle lst))))
     state))
   ;;(assoc state :image (conj (pop-stack state :image) img))))
-                            
-  
+
+
 ;; Does bad stuff but still isnt perfect, kinda funky
 (defn scramble_grid
   "Splits the image into smaller rectangles of random size and randomly places all of them in
@@ -903,6 +909,15 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println)
     (printf "Best errors: %s" (best-prog :errors))))
 
+(defn report3
+  [population generation]
+  (println)
+  (println "-------------------------------------------------------")
+  (printf  "                    Report for Generation %s           " generation)
+  (println)
+  (println "-------------------------------------------------------")
+  )
+
 (defn report2
   [population generation]
   (println population)
@@ -911,7 +926,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (println)
   (println))
 
-                      
+
 
 ;; MAYBE
 (defn report-more
@@ -935,7 +950,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (defn load-images
   "Loads a bunch of BufferedImages into a list from
   a bunch of image file names"
-  [& images]  
+  [& images]
   (map #(load-image-resource %) images))
 
 ;; MAYBE
@@ -969,7 +984,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
          population (map #(error-function %) (init-population population-size max-initial-program-size instructions))]
     (report population count)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
-      nil
+      (println population)
       (if (= 0 (get (apply min-key #(% :total-error) population) :total-error)) ;; Anyone with error=0?
         :SUCCESS
         (recur (+ count 1) ;; Recur by making new population, and getting errors
@@ -1058,7 +1073,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (defn need
   []
-  (prog-to-individual (make-random-push-program init-instructions 20)))  
+  (prog-to-individual (make-random-push-program init-instructions 20)))
 
 (defn image-determinant
   [img]
@@ -1066,7 +1081,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (defn sectionalize
   [img]
-  
   (let [wid (quot (width img) 5)
         hght (quot (height img) 5)]
     (loop [split_list '()
@@ -1084,13 +1098,19 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (def indddd
   (prog-to-individual example-push-program))
-  
+
+(def shit-prog
+  (prog-to-individual '(section-xor 1 section-and invert_colors scramble_grid invert_colors section-and section-or 1 laplace_filter emboss_filter scramble_grid)))
+
 
 ;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
 (defn Euclidean-error-function
   [individual]
   (let [target-list (map image-determinant (sectionalize target-image))
-        program-list (map image-determinant (sectionalize (peek-stack (get-solution individual) :image))) ;; List solutions for given individual
+        result (peek-stack (get-solution individual) :image)
+        program-list (if (identical? result :no-stack-item)
+                       (repeat (count target-list) 0)
+                       (map image-determinant (sectionalize result))) ;; List solutions for given individual
         errors (abs-difference-in-solution-lists target-list program-list)]
     {:program (:program individual)
      :errors errors
@@ -1149,9 +1169,13 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
-            :max-generations 100
-            :population-size 50
+            :max-generations 10
+            :population-size 8
             :max-initial-program-size 15}))
+
+(def one-prog
+  (prog-to-individual '(laplace_filter laplace_filter laplace_filter laplace_filter laplace_filter section-and laplace_filter laplace_filter laplace_filter section-and laplace_filter in1* in1* section-and section-and laplace_filter section-and section-and in1* in1* laplace_filter section-and in2 section-and in1* laplace_filter laplace_filter section-and in1* in1* laplace_filter in1* laplace_filter section-and section-and section-and laplace_filter laplace_filter laplace_filter laplace_filter laplace_filter section-and laplace_filter laplace_filter section-and in1* laplace_filter laplace_filter laplace_filter laplace_filter section-and section-and false laplace_filter laplace_filter laplace_filter section-and laplace_filter in2 section-and in2 laplace_filter section-and laplace_filter section-and laplace_filter laplace_filter false laplace_filter section-and section-and section-and laplace_filter laplace_filter section-and section-and false in1* section-and section-and laplace_filter section-and laplace_filter laplace_filter laplace_filter laplace_filter laplace_filter in2 laplace_filter in2 in2 section-and in1* section-and laplace_filter laplace_filter in2 section-and section-and laplace_filter section-and in1* section-and laplace_filter section-and in2 section-and section-and section-and laplace_filter laplace_filter laplace_filter in2 in2 in2 laplace_filter laplace_filter section-and in2 in2 laplace_filter)
+                      ))
 
 
 
