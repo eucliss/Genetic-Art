@@ -197,6 +197,8 @@
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
+  (println state)
+  (println stack)
   (zero? (count (state stack))))
 
 ;; GOOD
@@ -412,7 +414,7 @@
   ))
 
 (def if-state
-  {:exec '(exec_dup 1 integer_-* integer_-*)
+  {:exec '(exec_if)
    :integer '(4 3 3 4)
    :image '((1,3,4,5, 6, 7, 8, 9, 10, 10, 10, 10, 10, 10, 10, 10))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}
@@ -504,7 +506,7 @@
           sub-pixels2 (get-pixels (sub-image img2 0 rand-index (width img1) (- (height img1) rand-index)))
           ]
       (set-pixels img2 (int-array (concat sub-pixels1 sub-pixels2)))
-      (show img2 :zoom 10.0)
+      ;(show img2 :zoom 10.0)
       (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
 (defn apply-bit-operators
@@ -546,7 +548,7 @@
   :STUB
   (image-bitwise-helper state 'bit-xor))
 
-(show (peek-stack (section-and double-image-state-100px) :image) :zoom 10.0)
+;(show (peek-stack (section-and double-image-state-100px) :image) :zoom 10.0)
 
 (defn vertical_rotate
   "Rotates the input image vertically by a random number, which is generated here.
@@ -590,7 +592,7 @@
   "Inverts colors of the pic"
   [state]
   :STUB
-  (if (empty? (get state :image))
+  (if (empty-stack? state :image)
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert))))))
 
@@ -598,7 +600,7 @@
   "Applies a laplace filter to the image"
   [state]
   :STUB
-    (if (empty? (get state :image))
+    (if (empty-stack? state :image)
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
 
@@ -606,7 +608,7 @@
   "Applies a emboss filter to the image"
   [state]
   :STUB
-  (if (empty? (get state :image))
+  (if (empty-stack? state :image)
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/emboss))))))
 
@@ -614,7 +616,7 @@
   "Applies an edge filter to the image"
   [state]
   :STUB
-  (if (empty? (get state :image))
+  (if (empty-stack? state :image)
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge))))))
 
@@ -622,7 +624,7 @@
   "Applies a laplace filter to the image"
   [state]
   :STUB
-  (if (empty? (get state :image))
+  (if (empty-stack? state :image)
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
 
@@ -630,7 +632,7 @@
   "Applies a noise filter to the image"
   [state]
   :STUB
-  (if (empty? (get state :image))
+  (if (empty-stack? state :image)
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise))))))
 
@@ -1168,14 +1170,14 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
-            :max-generations 10
-            :population-size 6
+            :max-generations 100
+            :population-size 30
             :max-initial-program-size 15}))
 
 (def one-prog
   (prog-to-individual '(section-and emboss_filter emboss_filter exec_if scramble_grid section-and 1 emboss_filter scramble_grid scramble_grid emboss_filter edge_filter 1 emboss_filter edge_filter emboss_filter exec_if emboss_filter section-and section-and)
                       ))
-                 
+
 
 
 
@@ -1201,6 +1203,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; view our new work of art
 ;; the zoom function will automatically interpolate the pixel values
-(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
+;(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
 
 ;;(show (peek-stack (evaluate-one-case (prog-to-individual (make-random-push-program init-instructions 20)) empty-push-state (first test-cases)) :image))
