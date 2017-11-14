@@ -79,9 +79,18 @@
    :input {:in1 (load-image-resource "cars.jpg")}
    :bool '(true false)})
 
+;(false false 1 exec_dup exec_dup section-and exec_if exec_if edge_filter)
+
+(def bad-stuff
+  {:exec '(exec_dup exec_dup section-and exec_if exec_if edge_filter)
+   :integer '()
+   :image '()
+   :input {}
+   :bool '(false false)})
+
 (defn dub-func-state
   []
-  {:exec '(noise_filter 1 integer_-* integer_-*)
+  {:exec '(exec_dup noise_filter 1 integer_-* integer_-*)
    :integer '(4 3 3 4)
    :image (list (load-image-resource "btnPlus.png") (load-image-resource "arrow_up.jpg"))
    :input {:in1 (load-image-resource "cars.jpg")}
@@ -106,6 +115,28 @@
    :image '((0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
    :input {:in1 '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)}})
 
+
+;(exec_dup scramble_grid true noise_filter edge_filter exec_dup 1 false false noise_filter section-xor)
+;(scramble_grid emboss_filter section-xor invert_colors true exec_dup section-and section-or)
+;(scramble_grid scramble_grid emboss_filter invert_colors true exec_dup section-and section-or)
+
+
+;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
+;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1), :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17}
+ ;{:program (in1* exec_dup invert_colors edge_filter in1* true false 1), :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17}
+;{:program (in1* exec_dup invert_colors edge_filter in1* true false 1), :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17}
+
+;{:program 
+; , :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17} 
+
+
+(def broken-empty-stack
+  {:exec '(1 false true in1* in1* edge_filter invert_colors exec_dup in1*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "cars.jpg"))
+   :input {:in1 (load-image-resource "arrow_up.jpg")}
+   :bool '(true false)})
+
 ;;;;;;;;;;;;;;;;;;
 ;; Examples end ;;
 ;;;;;;;;;;;;;;;;;;
@@ -116,6 +147,10 @@
 
 (def init-instructions
   (list
+   'in1*
+   'in2
+   'in1*
+   'in2
    'in1*
    'in2
    ;'fuck-shit-stack
@@ -197,8 +232,8 @@
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
-  (println state)
-  (println stack)
+  ;(println state)
+  ;(println stack)
   (zero? (count (state stack))))
 
 ;; GOOD
@@ -410,8 +445,10 @@
   :STUB
   (if (zero? (count (get state :exec)))
     state
-    (assoc state :exec (conj (get state :exec) (peek-stack state :exec)))
-  ))
+    (if (= (peek-stack bad-stuff :exec) 'exec_dup)
+      state
+      (assoc state :exec (conj (get state :exec) (peek-stack state :exec)))
+      )))
 
 (def if-state
   {:exec '(exec_if)
@@ -423,8 +460,7 @@
 (defn exec_if
   "If bool stack has true, first item on exec stack, else second item"
   [state]
-  :STUB
-  (if (zero? (count (get state :bool))) ;; need enough elements to work with
+  (if (or (zero? (count (get state :bool))) (> 1 (count (get state :exec)))) ;; need enough elements to work with
     state
     (if (peek-stack state :bool)
       ;; remove second element of exec, popping from bool stack also
@@ -620,13 +656,6 @@
     state
     (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge))))))
 
-(defn laplace_filter
-  "Applies a laplace filter to the image"
-  [state]
-  :STUB
-  (if (empty-stack? state :image)
-    state
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
 
 (defn noise_filter
   "Applies a noise filter to the image"
@@ -876,6 +905,8 @@
 ;;;;;;;;;;;;
 ;; Reporting
 
+
+
 ;; MAYBE
 (defn report
   "Reports information on the population each generation. Should look something
@@ -896,16 +927,17 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (printf  "                    Report for Generation %s           " generation)
   (println)
   (println "-------------------------------------------------------")
+  
 
-  (let [best-prog (apply min-key #(% :total-error) population)]
+  (let [best-prog (apply max-key #(get % :total-error) population)]
     (printf "Best program: ")
     (println (best-prog :program)) ;; Wanted to print the actual program, not just the location
     (println)
-    (printf "Best program size: %s" (count (best-prog :program)))
+    (printf "Best program size: %s" (count (get best-prog :program)))
     (println)
-    (printf "Best total error: %s" (best-prog :total-error))
+    (printf "Best total error: %s" (get best-prog :total-error))
     (println)
-    (printf "Best errors: %s" (best-prog :errors))))
+    (printf "Best errors: %s" (get best-prog :errors))))
 
 (defn report3
   [population generation]
@@ -982,11 +1014,33 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
          population (map #(error-function %) (init-population population-size max-initial-program-size instructions))]
     (report population count)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
-      (println population)
-      (if (= 0 (get (apply min-key #(% :total-error) population) :total-error)) ;; Anyone with error=0?
+      :nil
+      (if (= 0 (get (apply min-key #(get % :total-error) population) :total-error)) ;; Anyone with error=0?
         :SUCCESS
         (recur (+ count 1) ;; Recur by making new population, and getting errors
                (map #(error-function (prog-to-individual %)) (get-child-population (map #(error-function %) population) population-size 10))))))) ;; Using a fixed tournament size of 20 for quick conversion
+
+;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
+;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
+;, :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17}
+ ;{:program (in1* exec_dup invert_colors edge_filter in1* true false 1)
+;, :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17}
+;{:program (in1* exec_dup invert_colors edge_filter in1* true false 1)
+;, :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17}
+
+;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
+; , :errors (0.0 0.0 0.0 0.0 0.0 0.0 0.0 4.632222114615712E17 0.0 0.0 0.0 0.0 0.0 1.437434250550272E15 0.0 0.0 0.0 2.59104440947307424E17 -0.0 0.0 0.0 -0.0 0.0 0.0 0.0), :total-error 7.2376408665942886E17} 
+
+(def bad-ind
+  (prog-to-individual '(in1* exec_dup invert_colors edge_filter in1* true false 1)
+                      ))
+
+(def broken-empty-stack
+  {:exec '(1 false true in1* in1* edge_filter invert_colors exec_dup in1*)
+   :integer '(4 3 3 4)
+   :image (list (load-image-resource "cars.jpg"))
+   :input {:in1 (load-image-resource "arrow_up.jpg")}
+   :bool '(true false)})
 
 
 ;;;;;;;;;;
@@ -1101,7 +1155,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (prog-to-individual example-push-program))
 
 (def shit-prog
-  (prog-to-individual '(section-xor 1 section-and invert_colors scramble_grid invert_colors section-and section-or 1 laplace_filter emboss_filter scramble_grid)))
+  (prog-to-individual '(in1* in1* section-xor section-xor invert_colors in1* section-xor exec_dup laplace_filter in2 in2 in2 hsplit_combine invert_colors laplace_filter invert_colors in1* in1* section-and in1* invert_colors invert_colors 1 invert_colors laplace_filter in1* invert_colors invert_colors invert_colors 1 exec_dup 1 laplace_filter hsplit_combine)
+                      ))
 
 
 ;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
@@ -1110,7 +1165,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (let [target-list (map image-determinant (sectionalize target-image))
         result (peek-stack (get-solution individual) :image)
         program-list (if (identical? result :no-stack-item)
-                       (repeat (count target-list) 10000000000000000)
+                       (repeat (count target-list) 10000000000)
                        (map image-determinant (sectionalize result))) ;; List solutions for given individual
         errors (abs-difference-in-solution-lists target-list program-list)]
     {:program (:program individual)
@@ -1171,12 +1226,14 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
             :max-generations 100
-            :population-size 30
-            :max-initial-program-size 15}))
+            :population-size 100
+            :max-initial-program-size 30}))
 
 (def one-prog
-  (prog-to-individual '(section-and emboss_filter emboss_filter exec_if scramble_grid section-and 1 emboss_filter scramble_grid scramble_grid emboss_filter edge_filter 1 emboss_filter edge_filter emboss_filter exec_if emboss_filter section-and section-and)
+  (prog-to-individual '(in2 laplace_filter emboss_filter section-and scramble_grid noise_filter in2 emboss_filter laplace_filter scramble_grid emboss_filter laplace_filter laplace_filter noise_filter false exec_dup section-and section-xor laplace_filter laplace_filter)
                       ))
+
+; (show (peek-stack (get-solution one-prog) :image) :zoom 10.0)
 
 
 
