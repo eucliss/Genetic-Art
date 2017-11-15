@@ -1009,16 +1009,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
    - error-function
    - instructions (a list of instructions)
    - max-initial-program-size (max size of randomly generated programs)"
-  [{:keys [population-size max-generations error-function instructions max-initial-program-size]}]
+  [{:keys [population-size max-generations error-function instructions max-initial-program-size initial-push-state test-cases]}]
   (loop [count 0
-         population (map #(error-function %) (init-population population-size max-initial-program-size instructions))]
+         population (map #(error-function % initial-push-state test-cases) (init-population population-size max-initial-program-size instructions))]
     (report population count)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
       :nil
       (if (= 0 (get (apply min-key #(get % :total-error) population) :total-error)) ;; Anyone with error=0?
         :SUCCESS
         (recur (+ count 1) ;; Recur by making new population, and getting errors
-               (map #(error-function (prog-to-individual %)) (get-child-population (map #(error-function %) population) population-size 10))))))) ;; Using a fixed tournament size of 20 for quick conversion
+               (map #(error-function (prog-to-individual %) initial-push-state test-cases) (get-child-population (map #(error-function % initial-push-state test-cases) population) population-size 10))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
 ;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
 ;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
@@ -1079,7 +1079,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; MAYBE
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
-  [individual state value]
+  [individual state value test-cases]
   (interpret-push-program (:program individual) (multiple-inputs empty-push-state test-cases)))
 
 (def test-ind
@@ -1109,8 +1109,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; Probably going to need to change
 (defn get-solution
   "Gets the list of solution for a test case"
-  [individual]
-  (evaluate-one-case individual empty-push-state test-cases))
+  [individual initial-push-state test-cases]
+  (evaluate-one-case individual initial-push-state test-cases))
 ;  (map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
   ;(map #(first (get % :image)) (map #(evaluate-one-case individual empty-push-state %) test-cases)))
   ;;(map #(if (zero? (count (:image %)))
@@ -1161,9 +1161,9 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 ;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
 (defn Euclidean-error-function
-  [individual]
+  [individual initial-push-state test-cases]
   (let [target-list (map image-determinant (sectionalize target-image))
-        result (peek-stack (get-solution individual) :image)
+        result (peek-stack (get-solution individual initial-push-state test-cases) :image)
         program-list (if (identical? result :no-stack-item)
                        (repeat (count target-list) 10000000000)
                        (map image-determinant (sectionalize result))) ;; List solutions for given individual
@@ -1227,7 +1227,9 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
             :error-function Euclidean-error-function
             :max-generations 100
             :population-size 100
-            :max-initial-program-size 30}))
+            :max-initial-program-size 30
+            :initial-push-state empty-push-state
+            :test-cases test-cases}))
 
 (def one-prog
   (prog-to-individual '(in2 laplace_filter emboss_filter section-and scramble_grid noise_filter in2 emboss_filter laplace_filter scramble_grid emboss_filter laplace_filter laplace_filter noise_filter false exec_dup section-and section-xor laplace_filter laplace_filter)
