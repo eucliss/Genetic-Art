@@ -1079,8 +1079,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; MAYBE
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
-  [individual state value]
-  (interpret-push-program (:program individual) (multiple-inputs empty-push-state test-cases)))
+  [individual initial-push-state input-images]
+  (interpret-push-program (:program individual) (multiple-inputs initial-push-state input-images)))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1164,7 +1164,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [individual initial-push-state input-images target-image]
   (let [target-list (map image-determinant (sectionalize target-image))
         result (peek-stack (get-solution individual initial-push-state input-images) :image)
-        program-list ((if (identical? result :no-stack-item)
+        program-list (if (identical? result :no-stack-item)
                        (repeat (count target-list) 10000000000)
                        (map image-determinant (sectionalize result))) ;; List solutions for given individual
         errors (abs-difference-in-solution-lists target-list program-list)]
@@ -1225,8 +1225,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
-            :max-generations 100
-            :population-size 100
+            :max-generations 10
+            :population-size 10
             :max-initial-program-size 30
             :initial-push-state empty-push-state
             :input-images test-cases
