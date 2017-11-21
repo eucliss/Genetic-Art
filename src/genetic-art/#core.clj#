@@ -157,11 +157,11 @@
    'exec_dup
    'exec_if
    'invert_colors
-   ;'laplace_filter
-   ;'emboss_filter
-   ;'edge_filter
-   ;'laplace_filter
-   ;'noise_filter
+   'laplace_filter
+   'emboss_filter
+   'edge_filter
+   'laplace_filter
+   'noise_filter
    'scramble_grid
    'section-and
    'section-or
