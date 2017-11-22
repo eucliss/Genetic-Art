@@ -807,7 +807,7 @@
   given test case greater than best error in population.  Once we are done
   going through test cases, random remaining individual will be returned for
   reproduction."
-  [population]
+  [population tournament-size]
   (let [order (shuffle-order (first population))
         new-pop (map #(shuffle-test-cases % order) population)]
     (loop [candidates new-pop
@@ -967,14 +967,12 @@
   25% to uniform-addition, and 25% to uniform-deletion."
   [population
    tournament-size
-   parent-select-type]
+   parent-select-fn]
   (let [seed (rand)    ;; Want to keep the same random number to base decision on
-        parent1 (:program (lexicase-selection population))    ;; Only want to select parents once, so save them
+        parent1 (:program (parent-select-fn population tournament-size))    ;; Only want to select parents once, so save them
         new-pop (remove-selected population parent1)
-        parent2 (:program (lexicase-selection population))]
-                                        ;parent1 (:program (tournament-selection population tournament-size))    ;; Only want to select parents once, so save them
-        ;new-pop (remove-selected population parent1)
-        ;parent2 (:program (tournament-selection population tournament-size))]
+        parent2 (:program (parent-select-fn population tournament-size))]
+
     (cond
       (< seed 0.5) (crossover parent1 parent2)
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
@@ -1067,12 +1065,12 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; MAYBE
 (defn get-child-population
   "Creates the next generation using select-and-vary function on the previous generation"
-  [population population-size tournament-size parent-select-type]
+  [population population-size tournament-size parent-select-fn]
   (loop [new-pop '()]
     (if (= (count new-pop) population-size)
       new-pop
       (recur (conj new-pop
-                   (select-and-vary population tournament-size parent-select-type))))))
+                   (select-and-vary population tournament-size parent-select-fn))))))
 
 ;; MAYBE
 (defn push-gp
@@ -1091,7 +1089,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
    - instructions (a list of instructions)
    - max-initial-program-size (max size of randomly generated programs)"
   [{:keys [population-size max-generations error-function instructions max-initial-program-size
-           initial-push-state input-images target-image parent-select-type]}]
+           initial-push-state input-images target-image parent-select-fn]}]
   (loop [count 0
          population (map #(error-function % initial-push-state input-images target-image)
                          (init-population population-size max-initial-program-size instructions))]
@@ -1104,7 +1102,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
                (map #(error-function (prog-to-individual %) initial-push-state input-images target-image)
                     (get-child-population
                      (map #(error-function % initial-push-state input-images target-image) population)
-                     population-size 10 parent-select-type))))))) ;; Using a fixed tournament size of 20 for quick conversion
+                     population-size 10 parent-select-fn))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
 ;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
 ;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
@@ -1333,7 +1331,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
             :initial-push-state empty-push-state
             :input-images test-cases1
             :target-image target-image1
-            :parent-select-type "tournament"}))
+            :parent-select-fn lexicase-selection}))
 
 (def one-prog
   (prog-to-individual '(scramble_grid in1* in1* false section-or exec_dup scramble_grid scramble_grid in2 section-xor in2 invert_colors in2 1 in2 false 1 in1* in2 in1* section-xor in2 in1* in2 in1* exec_if section-xor)
