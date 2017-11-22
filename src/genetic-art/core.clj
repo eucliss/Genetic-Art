@@ -2,6 +2,7 @@
   (:gen-class))
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
+
 (m/set-current-implementation :vectorz)
 
 (use 'mikera.image.core)
@@ -894,8 +895,8 @@
   [population
    tournament-size]
   (let [seed (rand)    ;; Want to keep the same random number to base decision on
-        parent1 (into () (:program (tournament-selection population tournament-size)))    ;; Only want to select parents once, so save them
-        parent2 (into () (:program (tournament-selection population tournament-size)))]
+        parent1 (:program (tournament-selection population tournament-size))   ;; Only want to select parents once, so save them
+        parent2 (:program (tournament-selection population tournament-size))]
     (cond
       (< seed 0.5) (crossover parent1 parent2)
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
@@ -1134,7 +1135,45 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [img]
   (m/det (image_to_matrix img)))
 
+
+;; CITE: Taken from https://github.com/clojure/math.combinatorics. Could
+;; have imported as a dependency, but I only needed the cartesian product
+;; function, so I just copied and pasted here.
+(defn cartesian-product
+  "All the ways to take one item from each sequence"
+  [& seqs]
+  (let [v-original-seqs (vec seqs)
+        step
+        (fn step [v-seqs]
+          (let [increment
+                (fn [v-seqs]
+                  (loop [i (dec (count v-seqs)), v-seqs v-seqs]
+                    (if (= i -1) nil
+                      (if-let [rst (next (v-seqs i))]
+                        (assoc v-seqs i rst)
+                        (recur (dec i) (assoc v-seqs i (v-original-seqs i)))))))]
+            (when v-seqs
+              (cons (map first v-seqs)
+                    (lazy-seq (step (increment v-seqs)))))))]
+    (when (every? seq seqs)
+      (lazy-seq (step v-original-seqs)))))
+
 (defn sectionalize
+  "Splits an image into a list of 2x2 sections.  Does this by
+  creating a range of starting coordinates for x and y, then taking
+  the cartesian product of those two ranges to get a sequence of
+  coords to start the sections at.  Can change the size of the sections
+  by changing x-section-size and y-section-size."
+  [img]
+  (let [x-section-size 2
+        y-section-size 2
+        x-inds (range 0 (width img) x-section-size)
+        y-inds (range 0 (height img) y-section-size)
+        coords (cartesian-product x-inds y-inds)]
+    (map #(sub-image img (first %) (last %) x-section-size y-section-size) coords)))
+
+
+(defn sectionalize2
   [img]
   (let [wid (quot (width img) 5)
         hght (quot (height img) 5)]
@@ -1226,7 +1265,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
             :max-generations 10
-            :population-size 10
+            :population-size 1000
             :max-initial-program-size 30
             :initial-push-state empty-push-state
             :input-images test-cases
