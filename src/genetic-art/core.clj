@@ -157,11 +157,11 @@
    'exec_dup
    'exec_if
    'invert_colors
-   ;'laplace_filter
-   ;'emboss_filter
-   ;'edge_filter
-   ;'laplace_filter
-   ;'noise_filter
+   'laplace_filter
+   'emboss_filter
+   'edge_filter
+   'laplace_filter
+   'noise_filter
    'scramble_grid
    'section-and
    'section-or
@@ -780,6 +780,27 @@
   (let [program-size (+ (rand-int max-initial-program-size) 1)]
     (repeatedly program-size #(rand-nth instructions))))
 
+
+(defn shuffle-order
+  "Returns a list of indicies that are in the range of test-cases size, without replacement
+  so that we can shuffle the test cases for each individual in the same way."
+  [individual]
+  (let [test-size (count (:errors individual))]
+    (shuffle (range test-size))))
+
+(defn shuffle-test-cases
+  "Returns a shuffled list of test-cases for an individual"
+  [individual order]
+  (let [shuffled (map #(nth (:errors individual) %) order)] 
+    (assoc individual :errors shuffled)))
+
+(defn find-lowest-error
+  "Finds the lowest error in the population for a given test case"
+  [population case]
+  ;(println "case errors: " (map #(nth % case) (map #(:errors %) population)))
+  (apply min (map #(nth % case) (map #(:errors %) population))))
+
+
 (defn lexicase-selection
   "Takes a population of evaluated individuals. Goes through test
   cases in random order.  Removes any individuals with error value on
@@ -787,7 +808,42 @@
   going through test cases, random remaining individual will be returned for
   reproduction."
   [population]
-  )
+  (let [order (shuffle-order (first population))
+        new-pop (map #(shuffle-test-cases % order) population)]
+    (loop [candidates new-pop
+           case 0]
+  
+      (if (= (count candidates) 1)
+        (first candidates)
+        (if (>= case (count order))
+          (rand-nth candidates)
+          (let [lowest-error (find-lowest-error candidates case)
+                new-candidates (remove #(= % nil)
+                                       (map (fn [candidate]
+                                              (if (<= (nth (:errors candidate) case) lowest-error)
+                                                
+                                                  candidate)) candidates))]
+            (recur new-candidates
+                   (inc case)))))
+      )))
+
+
+
+
+                ; (loop [cand-index 0
+                ;        curr-pop candidates]
+                ;   (println "CAND-INDEX: " cand-index)
+                ;   (println "currpop size: " (count curr-pop))
+                ;   (println "candidates first error: " (nth (:errors (nth candidates cand-index)) case))
+                ;   (println "candidates errors: " (:errors (nth candidates cand-index)))
+                ;   (if (>= cand-index (count candidates))
+                ;     curr-pop
+                ;     (if (> (nth (:errors (nth candidates cand-index)) case) lowest-error)
+                ;       (recur cand-index
+                ;              (concat (subvec (vec curr-pop) 0 cand-index)
+                ;                      (subvec (vec curr-pop) (inc cand-index))))
+                ;       (recur (inc cand-index)
+                ;              curr-pop))))))))))
 
 
 
@@ -897,7 +953,6 @@
 (defn remove-selected
   [population
    parent1]
-
   (let [ind (.indexOf (map #(:program %) population) parent1)]
     (concat (subvec (vec population) 0 ind) (subvec (vec population) (inc ind)))))
 
@@ -912,12 +967,14 @@
   25% to uniform-addition, and 25% to uniform-deletion."
   [population
    tournament-size
-   target-image
    parent-select-type]
   (let [seed (rand)    ;; Want to keep the same random number to base decision on
-        parent1 (:program (tournament-selection population tournament-size))    ;; Only want to select parents once, so save them
+        parent1 (:program (lexicase-selection population))    ;; Only want to select parents once, so save them
         new-pop (remove-selected population parent1)
-        parent2 (:program (tournament-selection population tournament-size))]
+        parent2 (:program (lexicase-selection population))]
+                                        ;parent1 (:program (tournament-selection population tournament-size))    ;; Only want to select parents once, so save them
+        ;new-pop (remove-selected population parent1)
+        ;parent2 (:program (tournament-selection population tournament-size))]
     (cond
       (< seed 0.5) (crossover parent1 parent2)
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
@@ -950,7 +1007,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (println)
   (println "-------------------------------------------------------")
   
-
   (let [best-prog (apply max-key #(get % :total-error) population)]
     (printf "Best program: ")
     (println (best-prog :program)) ;; Wanted to print the actual program, not just the location
@@ -1011,12 +1067,12 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; MAYBE
 (defn get-child-population
   "Creates the next generation using select-and-vary function on the previous generation"
-  [population population-size tournament-size target-image parent-select-type]
+  [population population-size tournament-size parent-select-type]
   (loop [new-pop '()]
     (if (= (count new-pop) population-size)
       new-pop
       (recur (conj new-pop
-                   (select-and-vary population tournament-size target-image parent-select-type))))))
+                   (select-and-vary population tournament-size parent-select-type))))))
 
 ;; MAYBE
 (defn push-gp
@@ -1048,7 +1104,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
                (map #(error-function (prog-to-individual %) initial-push-state input-images target-image)
                     (get-child-population
                      (map #(error-function % initial-push-state input-images target-image) population)
-                     population-size 10 target-image parent-select-type))))))) ;; Using a fixed tournament size of 20 for quick conversion
+                     population-size 10 parent-select-type))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
 ;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
 ;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
