@@ -781,6 +781,74 @@
   (let [program-size (+ (rand-int max-initial-program-size) 1)]
     (repeatedly program-size #(rand-nth instructions))))
 
+
+(defn shuffle-order
+  "Returns a list of indicies that are in the range of test-cases size, without replacement
+  so that we can shuffle the test cases for each individual in the same way."
+  [individual]
+  (let [test-size (count (:errors individual))]
+    (shuffle (range test-size))))
+
+(defn shuffle-test-cases
+  "Returns a shuffled list of test-cases for an individual"
+  [individual order]
+  (let [shuffled (map #(nth (:errors individual) %) order)] 
+    (assoc individual :errors shuffled)))
+
+(defn find-lowest-error
+  "Finds the lowest error in the population for a given test case"
+  [population case]
+  ;(println "case errors: " (map #(nth % case) (map #(:errors %) population)))
+  (apply min (map #(nth % case) (map #(:errors %) population))))
+
+
+(defn lexicase-selection
+  "Takes a population of evaluated individuals. Goes through test
+  cases in random order.  Removes any individuals with error value on
+  given test case greater than best error in population.  Once we are done
+  going through test cases, random remaining individual will be returned for
+  reproduction."
+  [population tournament-size]
+  (let [order (shuffle-order (first population))
+        new-pop (map #(shuffle-test-cases % order) population)]
+    (loop [candidates new-pop
+           case 0]
+  
+      (if (= (count candidates) 1)
+        (first candidates)
+        (if (>= case (count order))
+          (rand-nth candidates)
+          (let [lowest-error (find-lowest-error candidates case)
+                new-candidates (remove #(= % nil)
+                                       (map (fn [candidate]
+                                              (if (<= (nth (:errors candidate) case) lowest-error)
+                                                
+                                                  candidate)) candidates))]
+            (recur new-candidates
+                   (inc case)))))
+      )))
+
+
+
+
+                ; (loop [cand-index 0
+                ;        curr-pop candidates]
+                ;   (println "CAND-INDEX: " cand-index)
+                ;   (println "currpop size: " (count curr-pop))
+                ;   (println "candidates first error: " (nth (:errors (nth candidates cand-index)) case))
+                ;   (println "candidates errors: " (:errors (nth candidates cand-index)))
+                ;   (if (>= cand-index (count candidates))
+                ;     curr-pop
+                ;     (if (> (nth (:errors (nth candidates cand-index)) case) lowest-error)
+                ;       (recur cand-index
+                ;              (concat (subvec (vec curr-pop) 0 cand-index)
+                ;                      (subvec (vec curr-pop) (inc cand-index))))
+                ;       (recur (inc cand-index)
+                ;              curr-pop))))))))))
+
+
+
+
 ;; MAYBE
 (defn tournament-selection
   "Selects an individual from the population using a tournament. Returned
@@ -883,6 +951,12 @@
 ;;;;;;;;;;;;
 ;; New Population Creation Function
 
+(defn remove-selected
+  [population
+   parent1]
+  (let [ind (.indexOf (map #(:program %) population) parent1)]
+    (concat (subvec (vec population) 0 ind) (subvec (vec population) (inc ind)))))
+
 ;; BAD
 ;; Gunna make more instructions so we need to make this even more vobust
 ;; probably going to want to make a new function that decides if we are going to
@@ -893,10 +967,12 @@
   to use probabilistically. Gives 50% chance to crossover,
   25% to uniform-addition, and 25% to uniform-deletion."
   [population
-   tournament-size]
+   tournament-size
+   parent-select-fn]
   (let [seed (rand)    ;; Want to keep the same random number to base decision on
-        parent1 (:program (tournament-selection population tournament-size))   ;; Only want to select parents once, so save them
-        parent2 (:program (tournament-selection population tournament-size))]
+        parent1 (:program (parent-select-fn population tournament-size))    ;; Only want to select parents once, so save them
+        new-pop (remove-selected population parent1)
+        parent2 (:program (parent-select-fn population tournament-size))]
     (cond
       (< seed 0.5) (crossover parent1 parent2)
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
@@ -922,14 +998,13 @@ Best program size: 33
 Best total error: 727
 Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   "
-  [population generation]
+  [population generation input-images]
   (println)
   (println "-------------------------------------------------------")
   (printf  "                    Report for Generation %s           " generation)
   (println)
   (println "-------------------------------------------------------")
   
-
   (let [best-prog (apply max-key #(get % :total-error) population)]
     (printf "Best program: ")
     (println (best-prog :program)) ;; Wanted to print the actual program, not just the location
@@ -938,7 +1013,10 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println)
     (printf "Best total error: %s" (get best-prog :total-error))
     (println)
-    (printf "Best errors: %s" (get best-prog :errors))))
+    (printf "Best errors: %s" (get best-prog :errors))
+    (show (peek-stack (get-solution best-prog empty-push-state input-images) :image) :zoom 10.0)))
+
+
 
 (defn report3
   [population generation]
@@ -987,12 +1065,12 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; MAYBE
 (defn get-child-population
   "Creates the next generation using select-and-vary function on the previous generation"
-  [population population-size tournament-size]
+  [population population-size tournament-size parent-select-fn]
   (loop [new-pop '()]
     (if (= (count new-pop) population-size)
       new-pop
       (recur (conj new-pop
-                   (select-and-vary population tournament-size))))))
+                   (select-and-vary population tournament-size parent-select-fn))))))
 
 ;; MAYBE
 (defn push-gp
@@ -1010,16 +1088,21 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
    - error-function
    - instructions (a list of instructions)
    - max-initial-program-size (max size of randomly generated programs)"
-  [{:keys [population-size max-generations error-function instructions max-initial-program-size initial-push-state input-images target-image]}]
+  [{:keys [population-size max-generations error-function instructions max-initial-program-size
+           initial-push-state input-images target-image parent-select-fn]}]
   (loop [count 0
-         population (map #(error-function % initial-push-state input-images target-image) (init-population population-size max-initial-program-size instructions))]
-    (report population count)
+         population (map #(error-function % initial-push-state input-images target-image)
+                         (init-population population-size max-initial-program-size instructions))]
+    (report population count input-images)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
       :nil
       (if (= 0 (get (apply min-key #(get % :total-error) population) :total-error)) ;; Anyone with error=0?
         :SUCCESS
         (recur (+ count 1) ;; Recur by making new population, and getting errors
-               (map #(error-function (prog-to-individual %) initial-push-state input-images target-image) (get-child-population (map #(error-function % initial-push-state input-images target-image) population) population-size 10))))))) ;; Using a fixed tournament size of 20 for quick conversion
+               (map #(error-function (prog-to-individual %) initial-push-state input-images target-image)
+                    (get-child-population
+                     (map #(error-function % initial-push-state input-images target-image) population)
+                     population-size 10 parent-select-fn))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
 ;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
 ;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
@@ -1048,8 +1131,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; Error Functions
 
 
-(def target-image
+(def target-image1
   (load-image-resource "exp.jpg"))
+
+(def target-image2
+  (load-image-resource "300dali2.jpg"))
 
 ;; GOOD
 (defn abs
@@ -1062,11 +1148,17 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (def test-cases-pixels
   (list (rest (get-pixels (first (load-images "arrow_up.jpg"))))))
 
-(def test-cases
+(defn test-cases1
+  []
   (load-images "arrow_up.jpg" "btnPlus.png"))
 
-(def test-cases2
+(defn test-cases2
+  []
   (load-images "cars.jpg" "cars.jpg"))
+
+(defn test-cases3
+  []
+  (load-images "300dali1.jpg" "300trippy.png"))
 
 (defn multiple-inputs
   [state lst]
@@ -1081,7 +1173,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
   [individual initial-push-state input-images]
-  (interpret-push-program (:program individual) (multiple-inputs initial-push-state input-images)))
+  (interpret-push-program (:program individual) (multiple-inputs initial-push-state (input-images))))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1190,6 +1282,13 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
                  (+' x wid)
                  y))))))
 
+(defn test-case-list
+  "Just a wrapper for getting the list of determinants for the target image.
+  The resulting list will be used both in the error function and in lexicase
+  selection."
+  [target-image]
+  (map image-determinant (sectionalize target-image)))
+
 (def indddd
   (prog-to-individual example-push-program))
 
@@ -1201,11 +1300,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
 (defn Euclidean-error-function
   [individual initial-push-state input-images target-image]
-  (let [target-list (map image-determinant (sectionalize target-image))
+  (let [target-list (test-case-list target-image)
         result (peek-stack (get-solution individual initial-push-state input-images) :image)
         program-list (if (identical? result :no-stack-item)
                        (repeat (count target-list) 10000000000)
-                       (map image-determinant (sectionalize result))) ;; List solutions for given individual
+                       (test-case-list result)) ;; List solutions for given individual
         errors (abs-difference-in-solution-lists target-list program-list)]
     {:program (:program individual)
      :errors errors
@@ -1265,17 +1364,18 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
             :max-generations 10
-            :population-size 1000
+            :population-size 100
             :max-initial-program-size 30
             :initial-push-state empty-push-state
-            :input-images test-cases
-            :target-image target-image}))
+            :input-images test-cases1
+            :target-image target-image1
+            :parent-select-fn lexicase-selection}))
 
 (def one-prog
-  (prog-to-individual '(in2 laplace_filter emboss_filter section-and scramble_grid noise_filter in2 emboss_filter laplace_filter scramble_grid emboss_filter laplace_filter laplace_filter noise_filter false exec_dup section-and section-xor laplace_filter laplace_filter)
+  (prog-to-individual '(scramble_grid in1* in1* false section-or exec_dup scramble_grid scramble_grid in2 section-xor in2 invert_colors in2 1 in2 false 1 in1* in2 in1* section-xor in2 in1* in2 in1* exec_if section-xor)
                       ))
 
-; (show (peek-stack (get-solution one-prog) :image) :zoom 10.0)
+(show (peek-stack (get-solution one-prog empty-push-state test-cases2) :image))
 
 
 
