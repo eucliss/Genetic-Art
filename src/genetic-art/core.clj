@@ -148,26 +148,29 @@
 
 (def init-instructions
   (list
-   'in1*
-   'in2
-   'in1*
-   'in2
-   'in1*
-   'in2
+   ;'in1*
+   ;'in2
+   ;'in1*
+   ;'in2
+   ;'in1*
+   ;'in2
    ;'fuck-shit-stack
    'exec_dup
    'exec_if
    'invert_colors
-   'laplace_filter
-   'emboss_filter
-   'edge_filter
-   'laplace_filter
+   ;'laplace_filter
+   ;'emboss_filter
+   ;'edge_filter
+   ;'laplace_filter
    'noise_filter
    'scramble_grid
    'section-and
    'section-or
    'section-xor
    'hsplit_combine
+   'section-rotate
+   'section-rotate
+   'section-rotate
    true
    false
    1
@@ -546,6 +549,81 @@
       ;(show img2 :zoom 10.0)
       (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
+
+(defn replace-mat-section
+  [orig-mat
+   sub-mat
+   start-x
+   start-y
+   dim]
+  ;(println (range start-x (+ start-x dim)))
+  (map (fn [y]
+         (map (fn [x]
+                (m/mset! orig-mat
+                         x y
+                         (m/mget sub-mat
+                                 (- x start-x) (- y start-y))))
+              (range start-x (+ start-x dim)))
+         (range start-y (+ start-y dim)))))
+              
+(defn replace-img-section2
+  [img
+   sub-img
+   start-x
+   start-y]
+  (map (fn [x]
+         (map (fn [y]
+                (set-pixel img
+                           x y
+                           (get-pixel sub-img
+                                      (- x start-x) (- y start-y))))
+              (range start-y (+ start-y (height sub-img)))))
+         (range start-x (+ start-x (width sub-img))))
+  img)
+
+
+(defn replace-img-helper
+  [img
+   sub-img
+   start-x
+   start-y
+   y]
+  (loop [x start-x]
+    (if (< x (+ start-x (width sub-img)))
+      (do
+        (set-pixel img
+                   x y
+                   (get-pixel sub-img
+                              (- x start-x) (- y start-y)))
+        (recur (inc x))))))
+  
+(defn replace-img-section
+  [img
+   sub-img
+   start-x
+   start-y]
+  (loop [y start-y]
+    (if (< y (+ start-y (height sub-img)))
+      (do 
+        (replace-img-helper img sub-img start-x start-y y)
+        (recur (inc y)))))
+  img)
+    
+(defn section-rotate
+  [state]
+  (let [img (peek-stack state :image)
+        rand-x (rand-int (width img))
+        rand-y (rand-int (height img))
+        rand-dim (inc (rand-int (min (dec (- (width img) rand-x)) (dec (- (height img) rand-y)))))
+        ;img-matrix (image_to_matrix img)
+        rotated-section (rotate (sub-image img rand-x rand-y rand-dim rand-dim) (rand-nth '(90 180 270)))]
+        ;rotated-section-matrix (image_to_matrix
+  
+    (push-to-stack (pop-stack state :image) :image
+                   (replace-img-section img rotated-section rand-x rand-y))
+    ))
+
+
 (defn apply-bit-operators
   [ls op]
   (apply #((eval op) % %2) ls))
@@ -813,7 +891,8 @@
         new-pop (map #(shuffle-test-cases % order) population)]
     (loop [candidates new-pop
            case 0]
-  
+      (if (empty? candidates)
+        (rand-nth population)
       (if (= (count candidates) 1)
         (first candidates)
         (if (>= case (count order))
@@ -825,8 +904,7 @@
                                                 
                                                   candidate)) candidates))]
             (recur new-candidates
-                   (inc case)))))
-      )))
+                   (inc case)))))))))
 
 
 
@@ -1063,6 +1141,15 @@
   []
   (load-images "300dali1.jpg" "300trippy.png"))
 
+(defn load-initial-state
+  [state input-images]
+  (loop [iter 0
+         state state]
+    (if (= iter (count input-images))
+      state
+      (recur (inc iter)
+             (push-to-stack state :image (nth input-images iter))))))
+
 (defn multiple-inputs
   [state lst]
   (loop [iter 0
@@ -1076,7 +1163,7 @@
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
   [individual initial-push-state input-images]
-  (interpret-push-program (:program individual) (multiple-inputs initial-push-state (input-images))))
+  (interpret-push-program (:program individual) (multiple-inputs initial-push-state '())))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1160,13 +1247,11 @@
   coords to start the sections at.  Can change the size of the sections
   by changing x-section-size and y-section-size."
   [img]
-  (println "Sectionalizing")
-  (let [x-section-size 10
-        y-section-size 10
+  (let [x-section-size (quot (width img) 5)
+        y-section-size (quot (height img) 5)
         x-inds (range 0 (width img) x-section-size)
         y-inds (range 0 (height img) y-section-size)
         coords (cartesian-product x-inds y-inds)]
-    (println "Done sectionalizing")
     (map #(sub-image img (first %) (last %) x-section-size y-section-size) coords)))
 
 
@@ -1205,14 +1290,12 @@
 ;; NEED TO ACCOUNT FOR THERE NOT BEING AN IMAGE ONT HE STACK
 (defn Euclidean-error-function
   [individual initial-push-state input-images target-image]
-  (println "Evaluating individuals")
   (let [target-list (test-case-list target-image)
         result (peek-stack (get-solution individual initial-push-state input-images) :image)
         program-list (if (identical? result :no-stack-item)
                        (repeat (count target-list) 10000000000)
                        (test-case-list result)) ;; List solutions for given individual
         errors (abs-difference-in-solution-lists target-list program-list)]
-    (println "Done evaluating")
     {:program (:program individual)
      :errors errors
      :total-error (reduce + errors)}))
@@ -1255,7 +1338,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (printf "Best total error: %s" (get best-prog :total-error))
     (println)
     (printf "Best errors: %s" (get best-prog :errors))
-    (show (peek-stack (get-solution best-prog empty-push-state input-images) :image) :zoom 10.0)))
+    (show (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image) :zoom 10.0)
+
+
+    
+    ))
 
 
 (defn report3
@@ -1326,19 +1413,19 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (push-gp {:instructions init-instructions
             :error-function Euclidean-error-function
-            :max-generations 10
-            :population-size 10
+            :max-generations 100
+            :population-size 100
             :max-initial-program-size 30
-            :initial-push-state empty-push-state
-            :input-images test-cases3
-            :target-image target-image2
+            :initial-push-state (load-initial-state empty-push-state (test-cases1))
+            :input-images test-cases1
+            :target-image target-image1
             :parent-select-fn lexicase-selection}))
 
 (def one-prog
-  (prog-to-individual '(in1* in1* in2 in1* 1 edge_filter noise_filter hsplit_combine in1* true in2 in2 section-xor section-and in2 section-xor exec_if false in1* in2)
+  (prog-to-individual '(hsplit_combine false noise_filter noise_filter section-or section-and noise_filter laplace_filter exec_if laplace_filter true edge_filter section-or section-or section-and 1 exec_dup false exec_dup laplace_filter edge_filter true hsplit_combine section-xor 1)
                       ))
 
-(show (peek-stack (get-solution one-prog empty-push-state test-cases3) :image))
+(show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
 
 
 
