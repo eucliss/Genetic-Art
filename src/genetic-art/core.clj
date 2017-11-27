@@ -1144,6 +1144,12 @@
 (def target-image2
   (load-image-resource "300dali2.jpg"))
 
+(def target-image32
+  (load-image-resource "32_insta.png"))
+
+(def target-image100
+  (load-image-resource "100_idk.png"))
+
 ;; GOOD
 (defn abs
   "Returns the absolute value of a number x"
@@ -1167,6 +1173,14 @@
   []
   (load-images "300dali1.jpg" "300trippy.png"))
 
+(defn test-cases32
+  []
+  (load-images "32_g+.png" "32_face.png" "32_twitter.png" "32_pin.png"))
+
+(defn test-cases100
+  []
+  (load-images "100_fund.jpeg" "100_nbc.png" "100_soccer.png" "100_icons.jpeg" "100_house.png"))
+
 (defn load-initial-state
   [state input-images]
   (loop [iter 0
@@ -1189,7 +1203,7 @@
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
   [individual initial-push-state input-images]
-  (interpret-push-program (:program individual) (multiple-inputs initial-push-state '())))
+  (interpret-push-program (:program individual) initial-push-state))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1273,8 +1287,8 @@
   coords to start the sections at.  Can change the size of the sections
   by changing x-section-size and y-section-size."
   [img]
-  (let [x-section-size (quot (width img) 5)
-        y-section-size (quot (height img) 5)
+  (let [x-section-size (quot (width img) 10)
+        y-section-size (quot (height img) 10)
         x-inds (range 0 (width img) x-section-size)
         y-inds (range 0 (height img) y-section-size)
         coords (cartesian-product x-inds y-inds)]
@@ -1367,6 +1381,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (show (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image) :zoom 2.0)
 
 
+
     
     ))
 
@@ -1444,20 +1459,21 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 
 (defn -image-test
   [& args]
-  (let [input-images profs
-        target-image target-prof] 
-  (push-gp {:instructions init-instructions
-            :error-function Euclidean-error-function
-            :max-generations 100
-            :population-size 100
-            :max-initial-program-size 30
-            :initial-push-state (load-initial-state empty-push-state (input-images))
-            :input-images input-images
-            :target-image target-image
-            :parent-select-fn lexicase-selection})))
+
+  (let [input-images test-cases100
+        target-image target-image100]
+    (push-gp {:instructions init-instructions
+              :error-function Euclidean-error-function
+              :max-generations 100
+              :population-size 100
+              :max-initial-program-size 30
+              :initial-push-state (load-initial-state empty-push-state (input-images))
+              :input-images input-images
+              :target-image target-image
+              :parent-select-fn lexicase-selection})))
 
 (def one-prog
-  (prog-to-individual '(hsplit_combine false noise_filter noise_filter section-or section-and noise_filter laplace_filter exec_if laplace_filter true edge_filter section-or section-or section-and 1 exec_dup false exec_dup laplace_filter edge_filter true hsplit_combine section-xor 1)
+  (prog-to-individual '(section-xor section-or exec_dup exec_dup section-xor exec_dup exec_dup exec_dup true scramble_grid section-xor section-xor exec_dup section-or section-and section-and hsplit_combine section-and section-xor section-xor section-and hsplit_combine section-and exec_dup hsplit_combine hsplit_combine hsplit_combine section-xor hsplit_combine exec_dup exec_dup scramble_grid section-and section-or section-or hsplit_combine section-xor section-or section-or section-or section-xor section-or true section-xor section-or hsplit_combine section-or true true hsplit_combine exec_dup section-and section-and section-or section-or true section-or section-or hsplit_combine section-or exec_dup section-or exec_dup section-or hsplit_combine section-xor scramble_grid scramble_grid hsplit_combine exec_dup true hsplit_combine section-or section-or scramble_grid scramble_grid section-or section-or section-xor scramble_grid section-or section-and section-or section-and scramble_grid section-or section-or section-or section-and section-or scramble_grid section-and true hsplit_combine section-and section-or scramble_grid section-or section-and section-or section-and hsplit_combine section-or exec_dup exec_dup section-or section-or true exec_dup exec_dup section-and section-or section-and exec_dup section-or section-or section-and hsplit_combine hsplit_combine true section-xor section-or hsplit_combine exec_dup section-and section-or section-or exec_dup)
                       ))
 
 (show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
