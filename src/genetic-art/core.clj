@@ -952,7 +952,7 @@
 
 ;; BAD
 ;; Gunna have to change this to work with the new individual and image structure
-(defn crossover
+(defn uniform-crossover
   "Crosses over two programs (note: not individuals) using uniform crossover.
   Returns child program."
   [prog-a
@@ -970,6 +970,32 @@
                  (apply list (conj (apply vector new) (first prog-a)))
                  (apply list (conj (apply vector new) (first prog-b)))))))))
 
+
+(defn pick-indices
+  [prog]
+  (let [indices (range (count prog))        
+        first (rand-nth indices)
+        second (if (> (count indices) 1)
+                 (rand-nth (remove #(= % first) indices))
+                 first)]
+    (sort (list first second))))
+
+(defn two-point-crossover
+  [prog-a
+   prog-b]
+  (let [indices-a (pick-indices prog-a)
+        indices-b (pick-indices prog-b)]
+    (println indices-a)
+    (println indices-b) 
+    (concat (subvec (vec prog-b) 0 (first indices-b))
+            (subvec (vec prog-a) (first indices-a) (last indices-a))
+            (subvec (vec prog-b) (last indices-b)))))
+
+
+(defn alternation-crossover
+  [prog-a
+   prog-b]
+  )
 
 ;; ---- Mutations ------------------------
 
@@ -1052,7 +1078,7 @@
         new-pop (remove-selected population parent1)
         parent2 (:program (parent-select-fn population tournament-size))]
     (cond
-      (< seed 0.5) (crossover parent1 parent2)
+      (< seed 0.5) (uniform-crossover parent1 parent2)
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
       (>= seed 0.75) (uniform-deletion parent1))))
 
@@ -1352,8 +1378,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (printf "Best total error: %s" (get best-prog :total-error))
     (println)
     (printf "Best errors: %s" (get best-prog :errors))
-    (show (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image) :zoom 10.0)
-;;    (show (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image) :zoom 10.0)
+    (show (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image) :zoom 2.0)
+
 
 
     
@@ -1424,8 +1450,16 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
                      (map #(error-function % initial-push-state input-images target-image) population)
                      population-size 10 parent-select-fn))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
+(defn profs
+  []
+  (map #(resize % 100 100) (load-images "mark.jpg" "rick.jpg" "campbell.jpg")))
+
+(def target-prof
+  (resize (load-image-resource "stu.jpg") 100 100))
+
 (defn -image-test
   [& args]
+
   (let [input-images test-cases100
         target-image target-image100]
     (push-gp {:instructions init-instructions
