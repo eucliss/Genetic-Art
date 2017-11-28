@@ -1,0 +1,6 @@
+run#,converge,best-error,improvement of error,parent-selection type,error fn,pop size
+1,-1,3,2,none,non,3
+run-num,-1,error,improvement,Genetic_Art.core$lexicase_selection@1f1e23f6,Genetic_Art.core$Euclidean_error_function@3073e25b,200
+run-num,-1,error,improvement,,,200
+run-num,-1,error,improvement,,,200
+run-num,-1,error,improvement,lexicase_selection,Euclidean_error_function,200

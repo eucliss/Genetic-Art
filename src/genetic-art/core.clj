@@ -9,6 +9,8 @@
 (use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
 
+(require '[clojure.data.csv :as csv])
+
 
 ;;;;;;;;;;
 ;; Examples
@@ -1420,6 +1422,26 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;; --------------------------------------------------
 
 
+;;(with-open [in-file (clojure.java.io/reader "results/results.csv")]
+;;                    (doall
+;;                     (csv/read-csv in-file)))
+
+;;(with-open [out-file (clojure.java.io/writer "results/results.csv")]
+ ;;                   (csv/write-csv out-file [["this" "is"] ["a" "test"]]))
+
+(defn add-to-csv
+  [location run-num converge best-error improvement parent-selection error-fn pop-size]
+  (with-open [original (clojure.java.io/reader location)]
+    (let [data (doall(csv/read-csv original))]
+      (with-open [outfile (clojure.java.io/writer location)]
+      (csv/write-csv outfile (into [] (concat data (list
+                                                    (vector run-num converge best-error improvement parent-selection error-fn pop-size)))))))))
+
+(defn get-fn-name
+  [func]
+  (symbol (re-find #"(?<=\$).*(?=@)" (str func))))
+
+
 ;; MAYBE
 (defn push-gp
   "Main GP loop. Initializes the population, and then repeatedly
@@ -1443,9 +1465,9 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
                          (init-population population-size max-initial-program-size instructions))]
     (report population count input-images)
     (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
-      :nil
+      (add-to-csv "results/results.csv" "run-num" -1 "error" "improvement" (get-fn-name parent-select-fn) (get-fn-name error-function) population-size)
       (if (= 0 (get (apply min-key #(get % :total-error) population) :total-error)) ;; Anyone with error=0?
-        :SUCCESS
+        (add-to-csv "results/results.csv" "run-num" count 0 "improvement" (get-fn-name parent-select-fn) (get-fn-name error-function) population-size)
         (recur (+ count 1) ;; Recur by making new population, and getting errors
                (map #(error-function (prog-to-individual %) initial-push-state input-images target-image)
                     (get-child-population
@@ -1459,6 +1481,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;(def target-prof
 ;  (resize (load-image-resource "stu.jpg") 100 100))
 
+
+
 (defn -image-test
   [& args]
 
@@ -1466,7 +1490,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
         target-image target-image100]
     (push-gp {:instructions init-instructions
               :error-function Euclidean-error-function
-              :max-generations 5
+              :max-generations 10
               :population-size 200
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
@@ -1478,7 +1502,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (prog-to-individual '(section-xor section-or exec_dup exec_dup section-xor exec_dup exec_dup exec_dup true scramble_grid section-xor section-xor exec_dup section-or section-and section-and hsplit_combine section-and section-xor section-xor section-and hsplit_combine section-and exec_dup hsplit_combine hsplit_combine hsplit_combine section-xor hsplit_combine exec_dup exec_dup scramble_grid section-and section-or section-or hsplit_combine section-xor section-or section-or section-or section-xor section-or true section-xor section-or hsplit_combine section-or true true hsplit_combine exec_dup section-and section-and section-or section-or true section-or section-or hsplit_combine section-or exec_dup section-or exec_dup section-or hsplit_combine section-xor scramble_grid scramble_grid hsplit_combine exec_dup true hsplit_combine section-or section-or scramble_grid scramble_grid section-or section-or section-xor scramble_grid section-or section-and section-or section-and scramble_grid section-or section-or section-or section-and section-or scramble_grid section-and true hsplit_combine section-and section-or scramble_grid section-or section-and section-or section-and hsplit_combine section-or exec_dup exec_dup section-or section-or true exec_dup exec_dup section-and section-or section-and exec_dup section-or section-or section-and hsplit_combine hsplit_combine true section-xor section-or hsplit_combine exec_dup section-and section-or section-or exec_dup)
                       ))
 
-(show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
+;;(show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
 
 
 
@@ -1508,6 +1532,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
 
 ;;(show (peek-stack (evaluate-one-case (prog-to-individual (make-random-push-program init-instructions 20)) empty-push-state (first test-cases)) :image))
+
 
 
 
