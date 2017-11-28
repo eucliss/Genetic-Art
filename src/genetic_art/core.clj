@@ -1,7 +1,10 @@
-(ns Genetic-Art.core
+
+(ns genetic_art.core
   (:gen-class))
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
+
+
 (m/set-current-implementation :vectorz)
 
 (use 'mikera.image.core)
@@ -147,26 +150,30 @@
 
 (def init-instructions
   (list
-   'in1*
-   'in2
-   'in1*
-   'in2
-   'in1*
-   'in2
+
+   ;'in1*
+   ;'in2
+   ;'in1*
+   ;'in2
+   ;'in1*
+   ;'in2
    ;'fuck-shit-stack
    'exec_dup
    'exec_if
    'invert_colors
-   'laplace_filter
-   'emboss_filter
-   'edge_filter
-   'laplace_filter
+   ;'laplace_filter
+   ;'emboss_filter
+   ;'edge_filter
+   ;'laplace_filter
    'noise_filter
    'scramble_grid
    'section-and
    'section-or
    'section-xor
    'hsplit_combine
+   'section-rotate
+   'section-rotate
+   'section-rotate
    true
    false
    1
@@ -545,6 +552,81 @@
       ;(show img2 :zoom 10.0)
       (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2) )))
 
+
+(defn replace-mat-section
+  [orig-mat
+   sub-mat
+   start-x
+   start-y
+   dim]
+  ;(println (range start-x (+ start-x dim)))
+  (map (fn [y]
+         (map (fn [x]
+                (m/mset! orig-mat
+                         x y
+                         (m/mget sub-mat
+                                 (- x start-x) (- y start-y))))
+              (range start-x (+ start-x dim)))
+         (range start-y (+ start-y dim)))))
+              
+(defn replace-img-section2
+  [img
+   sub-img
+   start-x
+   start-y]
+  (map (fn [x]
+         (map (fn [y]
+                (set-pixel img
+                           x y
+                           (get-pixel sub-img
+                                      (- x start-x) (- y start-y))))
+              (range start-y (+ start-y (height sub-img)))))
+         (range start-x (+ start-x (width sub-img))))
+  img)
+
+
+(defn replace-img-helper
+  [img
+   sub-img
+   start-x
+   start-y
+   y]
+  (loop [x start-x]
+    (if (< x (+ start-x (width sub-img)))
+      (do
+        (set-pixel img
+                   x y
+                   (get-pixel sub-img
+                              (- x start-x) (- y start-y)))
+        (recur (inc x))))))
+  
+(defn replace-img-section
+  [img
+   sub-img
+   start-x
+   start-y]
+  (loop [y start-y]
+    (if (< y (+ start-y (height sub-img)))
+      (do 
+        (replace-img-helper img sub-img start-x start-y y)
+        (recur (inc y)))))
+  img)
+    
+(defn section-rotate
+  [state]
+  (let [img (peek-stack state :image)
+        rand-x (rand-int (width img))
+        rand-y (rand-int (height img))
+        rand-dim (inc (rand-int (min (dec (- (width img) rand-x)) (dec (- (height img) rand-y)))))
+        ;img-matrix (image_to_matrix img)
+        rotated-section (rotate (sub-image img rand-x rand-y rand-dim rand-dim) (rand-nth '(90 180 270)))]
+        ;rotated-section-matrix (image_to_matrix
+  
+    (push-to-stack (pop-stack state :image) :image
+                   (replace-img-section img rotated-section rand-x rand-y))
+    ))
+
+
 (defn apply-bit-operators
   [ls op]
   (apply #((eval op) % %2) ls))
@@ -800,6 +882,7 @@
   ;(println "case errors: " (map #(nth % case) (map #(:errors %) population)))
   (apply min (map #(nth % case) (map #(:errors %) population))))
 
+
 (defn errors-stddev
   [population
    case]
@@ -818,7 +901,9 @@
         new-pop (map #(shuffle-test-cases % order) population)]
     (loop [candidates new-pop
            case 0]
-  
+
+      (if (empty? candidates)
+        (rand-nth population)
       (if (= (count candidates) 1)
         (first candidates)
         (if (>= case (count order))
@@ -833,6 +918,7 @@
             (recur new-candidates
                    (inc case)))))
       )))
+
 
 
 
@@ -880,7 +966,8 @@
 
 ;; BAD
 ;; Gunna have to change this to work with the new individual and image structure
-(defn crossover
+
+(defn uniform-crossover
   "Crosses over two programs (note: not individuals) using uniform crossover.
   Returns child program."
   [prog-a
@@ -898,6 +985,33 @@
                  (apply list (conj (apply vector new) (first prog-a)))
                  (apply list (conj (apply vector new) (first prog-b)))))))))
 
+
+
+(defn pick-indices
+  [prog]
+  (let [indices (range (count prog))        
+        first (rand-nth indices)
+        second (if (> (count indices) 1)
+                 (rand-nth (remove #(= % first) indices))
+                 first)]
+    (sort (list first second))))
+
+(defn two-point-crossover
+  [prog-a
+   prog-b]
+  (let [indices-a (pick-indices prog-a)
+        indices-b (pick-indices prog-b)]
+    (println indices-a)
+    (println indices-b) 
+    (concat (subvec (vec prog-b) 0 (first indices-b))
+            (subvec (vec prog-a) (first indices-a) (last indices-a))
+            (subvec (vec prog-b) (last indices-b)))))
+
+
+(defn alternation-crossover
+  [prog-a
+   prog-b]
+  )
 
 ;; ---- Mutations ------------------------
 
@@ -981,80 +1095,13 @@
         parent2 (:program (parent-select-fn population tournament-size))]
 
     (cond
-      (< seed 0.5) (crossover parent1 parent2)
+      (< seed 0.5) (if (<= seed .25)
+                     (uniform-crossover parent1 parent2)
+                     (two-point-crossover parent1 parent2))
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
       (>= seed 0.75) (uniform-deletion parent1))))
 
 
-;;;;;;;;;;;;
-;; Reporting
-
-
-
-;; MAYBE
-(defn report
-  "Reports information on the population each generation. Should look something
-  like the following (should contain all of this info; format however you think
-  looks best; feel free to include other info).
-
--------------------------------------------------------
-               Report for Generation 3
--------------------------------------------------------
-Best program: (in1 integer_% integer_* integer_- 0 1 in1 1 integer_* 0 integer_* 1 in1 integer_* integer_- in1 integer_% integer_% 0 integer_+ in1 integer_* integer_- in1 in1 integer_* integer_+ integer_* in1 integer_- integer_* 1 integer_%)
-Best program size: 33
-Best total error: 727
-Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
-  "
-  [population generation input-images]
-  (println)
-  (println "-------------------------------------------------------")
-  (printf  "                    Report for Generation %s           " generation)
-  (println)
-  (println "-------------------------------------------------------")
-  
-  (let [best-prog (apply max-key #(get % :total-error) population)]
-    (printf "Best program: ")
-    (println (best-prog :program)) ;; Wanted to print the actual program, not just the location
-    (println)
-    (printf "Best program size: %s" (count (get best-prog :program)))
-    (println)
-    (printf "Best total error: %s" (get best-prog :total-error))
-    (println)
-    (printf "Best errors: %s" (get best-prog :errors))))
-    ;(show (peek-stack (get-solution best-prog empty-push-state input-images) :image) :zoom 10.0)))
-
-
-
-(defn report3
-  [population generation]
-  (println)
-  (println "-------------------------------------------------------")
-  (printf  "                    Report for Generation %s           " generation)
-  (println)
-  (println "-------------------------------------------------------")
-  )
-
-(defn report2
-  [population generation]
-  (println population)
-  (println)
-  (println generation)
-  (println)
-  (println))
-
-
-
-;; MAYBE
-(defn report-more
-  "Increased reporting we wanted to see state of our population"
-  [pop gen]
-  (report pop gen)
-  (println)
-  (printf "Total population error: %s" (reduce + (map #(% :total-error) pop)))
-  (println)
-  (printf "Average program size: %s" (quot (reduce + (map #(count (% :program)) pop)) (count pop))))
-
-;; --------------------------------------------------
 
 ;; GOOD
 (defn init-population
@@ -1079,37 +1126,6 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
       (recur (conj new-pop
                    (select-and-vary population tournament-size parent-select-fn))))))
 
-;; MAYBE
-(defn push-gp
-  "Main GP loop. Initializes the population, and then repeatedly
-  generates and evaluates new populations. Stops if it finds an
-  individual with 0 error (and should return :SUCCESS, or if it
-  exceeds the maximum generations (and should return nil). Should print
-  report each generation.
-  --
-  The only argument should be a map containing the core parameters to
-  push-gp. The format given below will decompose this map into individual
-  arguments. These arguments should include:
-   - population-size
-   - max-generations
-   - error-function
-   - instructions (a list of instructions)
-   - max-initial-program-size (max size of randomly generated programs)"
-  [{:keys [population-size max-generations error-function instructions max-initial-program-size
-           initial-push-state input-images target-image parent-select-fn]}]
-  (loop [count 0
-         population (map #(error-function % initial-push-state input-images target-image)
-                         (init-population population-size max-initial-program-size instructions))]
-    (report population count input-images)
-    (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
-      :nil
-      (if (= 0 (get (apply min-key #(get % :total-error) population) :total-error)) ;; Anyone with error=0?
-        :SUCCESS
-        (recur (+ count 1) ;; Recur by making new population, and getting errors
-               (map #(error-function (prog-to-individual %) initial-push-state input-images target-image)
-                    (get-child-population
-                     (map #(error-function % initial-push-state input-images target-image) population)
-                     population-size 10 parent-select-fn))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
 ;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
 ;{:program (in1* exec_dup invert_colors edge_filter in1* in1* true false 1)
@@ -1144,6 +1160,13 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (def target-image2
   (load-image-resource "300dali2.jpg"))
 
+
+(def target-image32
+  (load-image-resource "32_insta.png"))
+
+(def target-image100
+  (load-image-resource "100_idk.png"))
+
 ;; GOOD
 (defn abs
   "Returns the absolute value of a number x"
@@ -1167,6 +1190,24 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   []
   (load-images "300dali1.jpg" "300trippy.png"))
 
+
+(defn test-cases32
+  []
+  (load-images "32_g+.png" "32_face.png" "32_twitter.png" "32_pin.png"))
+
+(defn test-cases100
+  []
+  (map #(resize % 100 100)(load-images "300trippy.png" "300dali2.jpg" "300dali1.jpg" "100_fund.jpeg" "100_nbc.png" "100_soccer.png" "100_icons.jpeg" "100_house.png")))
+
+(defn load-initial-state
+  [state input-images]
+  (loop [iter 0
+         state state]
+    (if (= iter (count input-images))
+      state
+      (recur (inc iter)
+             (push-to-stack state :image (nth input-images iter))))))
+
 (defn multiple-inputs
   [state lst]
   (loop [iter 0
@@ -1180,7 +1221,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 (defn evaluate-one-case
   "Evaluates a single case for regression error function"
   [individual initial-push-state input-images]
-  (interpret-push-program (:program individual) (multiple-inputs initial-push-state (input-images))))
+  (interpret-push-program (:program individual) initial-push-state))
 
 (def test-ind
   (prog-to-individual '(in1* 1 integer_-*)))
@@ -1234,7 +1275,45 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [img]
   (m/det (image_to_matrix img)))
 
+
+;; CITE: Taken from https://github.com/clojure/math.combinatorics. Could
+;; have imported as a dependency, but I only needed the cartesian product
+;; function, so I just copied and pasted here.
+(defn cartesian-product
+  "All the ways to take one item from each sequence"
+  [& seqs]
+  (let [v-original-seqs (vec seqs)
+        step
+        (fn step [v-seqs]
+          (let [increment
+                (fn [v-seqs]
+                  (loop [i (dec (count v-seqs)), v-seqs v-seqs]
+                    (if (= i -1) nil
+                      (if-let [rst (next (v-seqs i))]
+                        (assoc v-seqs i rst)
+                        (recur (dec i) (assoc v-seqs i (v-original-seqs i)))))))]
+            (when v-seqs
+              (cons (map first v-seqs)
+                    (lazy-seq (step (increment v-seqs)))))))]
+    (when (every? seq seqs)
+      (lazy-seq (step v-original-seqs)))))
+
 (defn sectionalize
+  "Splits an image into a list of 2x2 sections.  Does this by
+  creating a range of starting coordinates for x and y, then taking
+  the cartesian product of those two ranges to get a sequence of
+  coords to start the sections at.  Can change the size of the sections
+  by changing x-section-size and y-section-size."
+  [img]
+  (let [x-section-size (quot (width img) 10)
+        y-section-size (quot (height img) 10)
+        x-inds (range 0 (width img) x-section-size)
+        y-inds (range 0 (height img) y-section-size)
+        coords (cartesian-product x-inds y-inds)]
+    (map #(sub-image img (first %) (last %) x-section-size y-section-size) coords)))
+
+
+(defn sectionalize2
   [img]
   (let [wid (quot (width img) 5)
         hght (quot (height img) 5)]
@@ -1279,72 +1358,129 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
      :errors errors
      :total-error (reduce + errors)}))
 
-;(defn regression-error-function
-;  "Takes an individual and evaluates it on some test cases. For each test case,
-;  runs program with the input set to :in1 in the :input map part of the Push state.
-;  Then, the output is the integer on top of the integer stack in the Push state
-;  returned by the interpreter. Computes each error by comparing output of
-;  the program to the correct output.
-;  Returns the individual with :errors set to the list of errors on each case,
-;  and :total-error set to the sum of the errors.
-;  Note: You must consider what to do if the program doesn't leave anything
-;  on the integer stack."
-;  [individual]
-;  (let [target-list (map #(target-function %) test-cases) ;; List of solutions for the target function
-;        program-list (get-solution-list individual) ;; List solutions for given individual
-;        errors (abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
-;        ]
-;    {:program (:program individual)
-;     :errors errors
-;     :total-error (reduce + errors)}))
-
-;;(defn image-error-function
-;;  [individual]
-;;  (let [target-list target-image
-;;        program-list (get-solution-list individual) ;; List solutions for given individual
-;;        errors (map #(abs-difference-in-solution-lists target-list %) program-list)
-        ;;(abs-difference-in-solution-lists target-list program-list) ;; Calculates errors
-;;        ]
-;;    {:program (:program individual)
-;;     :errors errors
-;;     :total-error (first (map #(reduce + %) errors ))}))
-
 (defn image-error-function
   [individual]
     {:program (:program individual)
      :errors 2
      :total-error 2})
 
-;;;;;;;;;;
-;; The main function. Uses some problem-specific functions.
+;;;;;;;;;;;;
+;; Reporting
+(defn report
+  "Reports information on the population each generation. Should look something
+  like the following (should contain all of this info; format however you think
+  looks best; feel free to include other info).
 
-;(defn -main
- ; "Runs push-gp, giving it a map of arguments."
-;  [& args]
-  ;(push-gp {:instructions instructions
-   ;         :error-function regression-error-function
-    ;        :max-generations 100
-     ;       :population-size 200
-      ;:max-initial-program-size 10}))
+-------------------------------------------------------
+               Report for Generation 3
+-------------------------------------------------------
+Best program: (in1 integer_% integer_* integer_- 0 1 in1 1 integer_* 0 integer_* 1 in1 integer_* integer_- in1 integer_% integer_% 0 integer_+ in1 integer_* integer_- in1 in1 integer_* integer_+ integer_* in1 integer_- integer_* 1 integer_%)
+Best program size: 33
+Best total error: 727
+Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
+  "
+  [population generation input-images]
+  (println)
+  (println "-------------------------------------------------------")
+  (printf  "                    Report for Generation %s           " generation)
+  (println)
+  (println "-------------------------------------------------------")
+  
+  (let [best-prog (apply max-key #(get % :total-error) population)
+        img (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image)]
+    (printf "Best program: ")
+    (println (best-prog :program)) ;; Wanted to print the actual program, not just the location
+    (println)
+    (printf "Best program size: %s" (count (get best-prog :program)))
+    (println)
+    (printf "Best total error: %s" (get best-prog :total-error))
+    (println)
+    (printf "Best errors: %s" (get best-prog :errors))
+    ;(show img :zoom 2.0)
+    (write (resize img 1000 1000) (str "results/" (width img) "/" (new java.util.Date)   "_gen" generation ".png") "png" :quality 1.0 :progressive true)
 
 
-(defn -image-test
-  [& args]
-  (push-gp {:instructions init-instructions
-            :error-function Euclidean-error-function
-            :max-generations 10
-            :population-size 100
-            :max-initial-program-size 30
-            :initial-push-state empty-push-state
-            :input-images test-cases1
-            :target-image target-image1
-            :parent-select-fn lexicase-selection}))
+
+    
+    ))
+
+
+(defn report3
+  [population generation]
+  (println)
+  (println "-------------------------------------------------------")
+  (printf  "                    Report for Generation %s           " generation)
+  (println)
+  (println "-------------------------------------------------------")
+  )
+
+(defn report2
+  [population generation]
+  (println population)
+  (println)
+  (println generation)
+  (println)
+  (println))
+
+
+
+;; MAYBE
+(defn report-more
+  "Increased reporting we wanted to see state of our population"
+  [pop gen]
+  (report pop gen)
+  (println)
+  (printf "Total population error: %s" (reduce + (map #(% :total-error) pop)))
+  (println)
+  (printf "Average program size: %s" (quot (reduce + (map #(count (% :program)) pop)) (count pop))))
+
+;; --------------------------------------------------
+
+
+;; MAYBE
+(defn push-gp
+  "Main GP loop. Initializes the population, and then repeatedly
+  generates and evaluates new populations. Stops if it finds an
+  individual with 0 error (and should return :SUCCESS, or if it
+  exceeds the maximum generations (and should return nil). Should print
+  report each generation.
+  --
+  The only argument should be a map containing the core parameters to
+  push-gp. The format given below will decompose this map into individual
+  arguments. These arguments should include:
+   - population-size
+   - max-generations
+   - error-function
+   - instructions (a list of instructions)
+   - max-initial-program-size (max size of randomly generated programs)"
+  [{:keys [population-size max-generations error-function instructions max-initial-program-size
+           initial-push-state input-images target-image parent-select-fn]}]
+  (loop [count 0
+         population (map #(error-function % initial-push-state input-images target-image)
+                         (init-population population-size max-initial-program-size instructions))]
+    (report population count input-images)
+    (if (>= count max-generations) ;; If we reach max-generations, null, otherwise keep going
+      :nil
+      (if (= 0 (get (apply min-key #(get % :total-error) population) :total-error)) ;; Anyone with error=0?
+        :SUCCESS
+        (recur (+ count 1) ;; Recur by making new population, and getting errors
+               (map #(error-function (prog-to-individual %) initial-push-state input-images target-image)
+                    (get-child-population
+                     (map #(error-function % initial-push-state input-images target-image) population)
+                     population-size 10 parent-select-fn))))))) ;; Using a fixed tournament size of 20 for quick conversion
+
+;(defn profs
+;  []
+;  (map #(resize % 100 100) (load-images "mark.jpg" "rick.jpg" "campbell.jpg")))
+
+;(def target-prof
+;  (resize (load-image-resource "stu.jpg") 100 100))
 
 (def one-prog
-  (prog-to-individual '(scramble_grid in1* in1* false section-or exec_dup scramble_grid scramble_grid in2 section-xor in2 invert_colors in2 1 in2 false 1 in1* in2 in1* section-xor in2 in1* in2 in1* exec_if section-xor)
+  (prog-to-individual '(section-xor section-or exec_dup exec_dup section-xor exec_dup exec_dup exec_dup true scramble_grid section-xor section-xor exec_dup section-or section-and section-and hsplit_combine section-and section-xor section-xor section-and hsplit_combine section-and exec_dup hsplit_combine hsplit_combine hsplit_combine section-xor hsplit_combine exec_dup exec_dup scramble_grid section-and section-or section-or hsplit_combine section-xor section-or section-or section-or section-xor section-or true section-xor section-or hsplit_combine section-or true true hsplit_combine exec_dup section-and section-and section-or section-or true section-or section-or hsplit_combine section-or exec_dup section-or exec_dup section-or hsplit_combine section-xor scramble_grid scramble_grid hsplit_combine exec_dup true hsplit_combine section-or section-or scramble_grid scramble_grid section-or section-or section-xor scramble_grid section-or section-and section-or section-and scramble_grid section-or section-or section-or section-and section-or scramble_grid section-and true hsplit_combine section-and section-or scramble_grid section-or section-and section-or section-and hsplit_combine section-or exec_dup exec_dup section-or section-or true exec_dup exec_dup section-and section-or section-and exec_dup section-or section-or section-and hsplit_combine hsplit_combine true section-xor section-or hsplit_combine exec_dup section-and section-or section-or exec_dup)
                       ))
 
-(show (peek-stack (get-solution one-prog empty-push-state test-cases2) :image))
+;(show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
 
 
 
@@ -1374,3 +1510,19 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
 
 ;;(show (peek-stack (evaluate-one-case (prog-to-individual (make-random-push-program init-instructions 20)) empty-push-state (first test-cases)) :image))
+
+(defn -main
+  [& args]
+  (let [input-images test-cases100
+        target-image target-image100]
+    (binding [*ns* (the-ns 'genetic_art.core)]
+    (push-gp {:instructions init-instructions
+              :error-function Euclidean-error-function
+              :max-generations 5
+              :population-size 100
+              :max-initial-program-size 30
+              :initial-push-state (load-initial-state empty-push-state (input-images))
+              :input-images input-images
+              :target-image target-image
+              :parent-select-fn lexicase-selection}))))
+
