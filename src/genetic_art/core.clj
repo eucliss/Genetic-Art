@@ -1,7 +1,9 @@
+
 (ns genetic_art.core
   (:gen-class))
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
+
 
 (m/set-current-implementation :vectorz)
 
@@ -148,6 +150,7 @@
 
 (def init-instructions
   (list
+
    ;'in1*
    ;'in2
    ;'in1*
@@ -880,6 +883,13 @@
   (apply min (map #(nth % case) (map #(:errors %) population))))
 
 
+(defn errors-stddev
+  [population
+   case]
+  (let [errors-list (map #(nth (:errors %) case) population)
+        mean-error (/ (apply + errors-list) 2)]
+    (/ (apply + (map #(Math/pow (- % mean-error) 2) errors-list)) 2)))
+    
 (defn lexicase-selection
   "Takes a population of evaluated individuals. Goes through test
   cases in random order.  Removes any individuals with error value on
@@ -891,6 +901,7 @@
         new-pop (map #(shuffle-test-cases % order) population)]
     (loop [candidates new-pop
            case 0]
+
       (if (empty? candidates)
         (rand-nth population)
       (if (= (count candidates) 1)
@@ -900,11 +911,14 @@
           (let [lowest-error (find-lowest-error candidates case)
                 new-candidates (remove #(= % nil)
                                        (map (fn [candidate]
-                                              (if (<= (nth (:errors candidate) case) lowest-error)
+                                              (if (<= (nth (:errors candidate) case) 
+                                                      (+ lowest-error (errors-stddev candidates case)))
                                                 
                                                   candidate)) candidates))]
             (recur new-candidates
-                   (inc case)))))))))
+                   (inc case)))))
+      )))
+
 
 
 
@@ -952,6 +966,7 @@
 
 ;; BAD
 ;; Gunna have to change this to work with the new individual and image structure
+
 (defn uniform-crossover
   "Crosses over two programs (note: not individuals) using uniform crossover.
   Returns child program."
@@ -969,6 +984,7 @@
                (if (= (rand-int 2) 0) ;; Pick one of the programs instructions and add to child
                  (apply list (conj (apply vector new) (first prog-a)))
                  (apply list (conj (apply vector new) (first prog-b)))))))))
+
 
 
 (defn pick-indices
@@ -1077,13 +1093,13 @@
         parent1 (:program (parent-select-fn population tournament-size))    ;; Only want to select parents once, so save them
         new-pop (remove-selected population parent1)
         parent2 (:program (parent-select-fn population tournament-size))]
+
     (cond
       (< seed 0.5) (if (<= seed .25)
                      (uniform-crossover parent1 parent2)
                      (two-point-crossover parent1 parent2))
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
       (>= seed 0.75) (uniform-deletion parent1))))
-
 
 
 
@@ -1109,8 +1125,6 @@
       new-pop
       (recur (conj new-pop
                    (select-and-vary population tournament-size parent-select-fn))))))
-
-
 
 
 ;; THESE PROGRAMS ARE CURRENTLY CAUSING THE HAGNING
@@ -1146,6 +1160,7 @@
 (def target-image2
   (load-image-resource "300dali2.jpg"))
 
+
 (def target-image32
   (load-image-resource "32_insta.png"))
 
@@ -1174,6 +1189,7 @@
 (defn test-cases3
   []
   (load-images "300dali1.jpg" "300trippy.png"))
+
 
 (defn test-cases32
   []
@@ -1348,7 +1364,6 @@
      :errors 2
      :total-error 2})
 
-
 ;;;;;;;;;;;;
 ;; Reporting
 (defn report
@@ -1510,9 +1525,4 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
               :input-images input-images
               :target-image target-image
               :parent-select-fn lexicase-selection}))))
-
-
-
-
-
 
