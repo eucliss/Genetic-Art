@@ -985,8 +985,6 @@
    prog-b]
   (let [indices-a (pick-indices prog-a)
         indices-b (pick-indices prog-b)]
-    (println indices-a)
-    (println indices-b) 
     (concat (subvec (vec prog-b) 0 (first indices-b))
             (subvec (vec prog-a) (first indices-a) (last indices-a))
             (subvec (vec prog-b) (last indices-b)))))
