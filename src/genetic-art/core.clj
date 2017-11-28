@@ -1179,7 +1179,7 @@
 
 (defn test-cases100
   []
-  (load-images "100_fund.jpeg" "100_nbc.png" "100_soccer.png" "100_icons.jpeg" "100_house.png"))
+  (map #(resize % 100 100)(load-images "300trippy.png" "300dali2.jpg" "300dali1.jpg" "100_fund.jpeg" "100_nbc.png" "100_soccer.png" "100_icons.jpeg" "100_house.png")))
 
 (defn load-initial-state
   [state input-images]
@@ -1369,7 +1369,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   (println)
   (println "-------------------------------------------------------")
   
-  (let [best-prog (apply max-key #(get % :total-error) population)]
+  (let [best-prog (apply max-key #(get % :total-error) population)
+        img (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image)]
     (printf "Best program: ")
     (println (best-prog :program)) ;; Wanted to print the actual program, not just the location
     (println)
@@ -1378,7 +1379,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (printf "Best total error: %s" (get best-prog :total-error))
     (println)
     (printf "Best errors: %s" (get best-prog :errors))
-    (show (peek-stack (get-solution best-prog (load-initial-state empty-push-state (input-images)) input-images) :image) :zoom 2.0)
+    (show img :zoom 2.0)
+    (write (resize img 1000 1000) (str "results/" (width img) "/" (new java.util.Date)   "_gen" generation ".png") "png" :quality 1.0 :progressive true)
 
 
 
@@ -1450,12 +1452,12 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
                      (map #(error-function % initial-push-state input-images target-image) population)
                      population-size 10 parent-select-fn))))))) ;; Using a fixed tournament size of 20 for quick conversion
 
-(defn profs
-  []
-  (map #(resize % 100 100) (load-images "mark.jpg" "rick.jpg" "campbell.jpg")))
+;(defn profs
+;  []
+;  (map #(resize % 100 100) (load-images "mark.jpg" "rick.jpg" "campbell.jpg")))
 
-(def target-prof
-  (resize (load-image-resource "stu.jpg") 100 100))
+;(def target-prof
+;  (resize (load-image-resource "stu.jpg") 100 100))
 
 (defn -image-test
   [& args]
@@ -1464,8 +1466,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
         target-image target-image100]
     (push-gp {:instructions init-instructions
               :error-function Euclidean-error-function
-              :max-generations 100
-              :population-size 100
+              :max-generations 5
+              :population-size 200
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
               :input-images input-images
