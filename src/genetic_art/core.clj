@@ -1078,7 +1078,9 @@
         new-pop (remove-selected population parent1)
         parent2 (:program (parent-select-fn population tournament-size))]
     (cond
-      (< seed 0.5) (uniform-crossover parent1 parent2)
+      (< seed 0.5) (if (<= seed .25)
+                     (uniform-crossover parent1 parent2)
+                     (two-point-crossover parent1 parent2))
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
       (>= seed 0.75) (uniform-deletion parent1))))
 
