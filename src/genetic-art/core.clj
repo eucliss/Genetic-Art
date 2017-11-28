@@ -800,7 +800,13 @@
   ;(println "case errors: " (map #(nth % case) (map #(:errors %) population)))
   (apply min (map #(nth % case) (map #(:errors %) population))))
 
-
+(defn errors-stddev
+  [population
+   case]
+  (let [errors-list (map #(nth (:errors %) case) population)
+        mean-error (/ (apply + errors-list) 2)]
+    (/ (apply + (map #(Math/pow (- % mean-error) 2) errors-list)) 2)))
+    
 (defn lexicase-selection
   "Takes a population of evaluated individuals. Goes through test
   cases in random order.  Removes any individuals with error value on
@@ -820,7 +826,8 @@
           (let [lowest-error (find-lowest-error candidates case)
                 new-candidates (remove #(= % nil)
                                        (map (fn [candidate]
-                                              (if (<= (nth (:errors candidate) case) lowest-error)
+                                              (if (<= (nth (:errors candidate) case) 
+                                                      (+ lowest-error (errors-stddev candidates case)))
                                                 
                                                   candidate)) candidates))]
             (recur new-candidates
@@ -1013,8 +1020,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (println)
     (printf "Best total error: %s" (get best-prog :total-error))
     (println)
-    (printf "Best errors: %s" (get best-prog :errors))
-    (show (peek-stack (get-solution best-prog empty-push-state input-images) :image) :zoom 10.0)))
+    (printf "Best errors: %s" (get best-prog :errors))))
+    ;(show (peek-stack (get-solution best-prog empty-push-state input-images) :image) :zoom 10.0)))
 
 
 
