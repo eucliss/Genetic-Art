@@ -1498,6 +1498,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
   [& args]
   (let [input-images test-cases100
         target-image target-image100]
+    (binding [*ns* (the-ns 'genetic_art.core)]
     (push-gp {:instructions init-instructions
               :error-function Euclidean-error-function
               :max-generations 5
@@ -1506,7 +1507,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
               :initial-push-state (load-initial-state empty-push-state (input-images))
               :input-images input-images
               :target-image target-image
-              :parent-select-fn lexicase-selection})))
+              :parent-select-fn lexicase-selection}))))
 
 
 
