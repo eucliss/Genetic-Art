@@ -992,10 +992,6 @@
             (subvec (vec prog-b) (last indices-b)))))
 
 
-(defn alternation-crossover
-  [prog-a
-   prog-b]
-  )
 
 ;; ---- Mutations ------------------------
 
