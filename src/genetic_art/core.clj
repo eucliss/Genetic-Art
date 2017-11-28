@@ -1,4 +1,4 @@
-(ns Genetic-Art.core
+(ns genetic_art.core
   (:gen-class))
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
@@ -1379,7 +1379,7 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (printf "Best total error: %s" (get best-prog :total-error))
     (println)
     (printf "Best errors: %s" (get best-prog :errors))
-    (show img :zoom 2.0)
+    ;(show img :zoom 2.0)
     (write (resize img 1000 1000) (str "results/" (width img) "/" (new java.util.Date)   "_gen" generation ".png") "png" :quality 1.0 :progressive true)
 
 
@@ -1459,26 +1459,11 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;(def target-prof
 ;  (resize (load-image-resource "stu.jpg") 100 100))
 
-(defn -image-test
-  [& args]
-
-  (let [input-images test-cases100
-        target-image target-image100]
-    (push-gp {:instructions init-instructions
-              :error-function Euclidean-error-function
-              :max-generations 5
-              :population-size 200
-              :max-initial-program-size 30
-              :initial-push-state (load-initial-state empty-push-state (input-images))
-              :input-images input-images
-              :target-image target-image
-              :parent-select-fn lexicase-selection})))
-
 (def one-prog
   (prog-to-individual '(section-xor section-or exec_dup exec_dup section-xor exec_dup exec_dup exec_dup true scramble_grid section-xor section-xor exec_dup section-or section-and section-and hsplit_combine section-and section-xor section-xor section-and hsplit_combine section-and exec_dup hsplit_combine hsplit_combine hsplit_combine section-xor hsplit_combine exec_dup exec_dup scramble_grid section-and section-or section-or hsplit_combine section-xor section-or section-or section-or section-xor section-or true section-xor section-or hsplit_combine section-or true true hsplit_combine exec_dup section-and section-and section-or section-or true section-or section-or hsplit_combine section-or exec_dup section-or exec_dup section-or hsplit_combine section-xor scramble_grid scramble_grid hsplit_combine exec_dup true hsplit_combine section-or section-or scramble_grid scramble_grid section-or section-or section-xor scramble_grid section-or section-and section-or section-and scramble_grid section-or section-or section-or section-and section-or scramble_grid section-and true hsplit_combine section-and section-or scramble_grid section-or section-and section-or section-and hsplit_combine section-or exec_dup exec_dup section-or section-or true exec_dup exec_dup section-and section-or section-and exec_dup section-or section-or section-and hsplit_combine hsplit_combine true section-xor section-or hsplit_combine exec_dup section-and section-or section-or exec_dup)
                       ))
 
-(show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
+;(show (peek-stack (get-solution one-prog (load-initial-state empty-push-state (test-cases3)) test-cases3) :image))
 
 
 
@@ -1508,6 +1493,20 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
 ;(show bi2 :zoom 10.0 :title "Isn't it beautiful?")
 
 ;;(show (peek-stack (evaluate-one-case (prog-to-individual (make-random-push-program init-instructions 20)) empty-push-state (first test-cases)) :image))
+
+(defn -main
+  [& args]
+  (let [input-images test-cases100
+        target-image target-image100]
+    (push-gp {:instructions init-instructions
+              :error-function Euclidean-error-function
+              :max-generations 5
+              :population-size 100
+              :max-initial-program-size 30
+              :initial-push-state (load-initial-state empty-push-state (input-images))
+              :input-images input-images
+              :target-image target-image
+              :parent-select-fn lexicase-selection})))
 
 
 
