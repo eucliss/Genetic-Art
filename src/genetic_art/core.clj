@@ -513,8 +513,8 @@
 
 (defn vsplit_helper
   [state img2 new-list]
-  (println (count new-list))
-  (println (width img2))
+  ;(println (count new-list))
+  ;(println (width img2))
   ;;(set-pixels img2 (int-array new-list))
   ;;(show img2 :zoom 10.0)
   (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2))
@@ -917,7 +917,7 @@
                                                   candidate)) candidates))]
             (recur new-candidates
                    (inc case)))))
-      )))
+      ))))
 
 
 
@@ -1001,8 +1001,6 @@
    prog-b]
   (let [indices-a (pick-indices prog-a)
         indices-b (pick-indices prog-b)]
-    (println indices-a)
-    (println indices-b) 
     (concat (subvec (vec prog-b) 0 (first indices-b))
             (subvec (vec prog-a) (first indices-a) (last indices-a))
             (subvec (vec prog-b) (last indices-b)))))
@@ -1095,7 +1093,7 @@
         parent2 (:program (parent-select-fn population tournament-size))]
 
     (cond
-      (< seed 0.5) (if (<= seed .25)
+      (< seed 0.5) (if (<= seed 0.25)
                      (uniform-crossover parent1 parent2)
                      (two-point-crossover parent1 parent2))
       (and (>= seed 0.5) (< 0.75)) (uniform-addition parent1 parent2)
@@ -1518,8 +1516,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (binding [*ns* (the-ns 'genetic_art.core)]
     (push-gp {:instructions init-instructions
               :error-function Euclidean-error-function
-              :max-generations 5
-              :population-size 100
+              :max-generations 20
+              :population-size 20
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
               :input-images input-images
