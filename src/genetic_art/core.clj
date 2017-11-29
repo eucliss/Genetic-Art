@@ -1,12 +1,15 @@
 
 (ns genetic_art.core
   (:gen-class))
+
+;; Use these for matrix manipulation and determinants
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
 
 
 (m/set-current-implementation :vectorz)
 
+;; Use these for image processing
 (use 'mikera.image.core)
 (use 'mikera.image.colours)
 (require '[mikera.image.filters :as filt])
@@ -115,8 +118,6 @@
 (defn empty-stack?
   "Returns true if the stack is empty in state."
   [state stack]
-  ;(println state)
-  ;(println stack)
   (zero? (count (state stack))))
 
 (defn pop-stack
@@ -165,17 +166,6 @@
             new-state (:state args-pop-result)]
         (push-to-stack new-state return-stack result)))))
 
-(defn print-image-pixels
-  "Takes a BufferedImage and prints it"
-  [image]
-  (loop [x 0]
-    (loop [y 0]
-      (when (< y (dec (height image)))
-            (print (get-pixel image x y) "")
-            (recur (inc y))))
-    (when (< x (dec (width image)))
-          (recur (inc x)))))
-
 (defn image_to_matrix
   [img]
   (m/matrix (into [] (map #(into [] %)(partition (width img) (get-pixels img))))))
@@ -189,18 +179,6 @@
    :total-error 0})
   ([prog error-list total-error]  ;; Converts a program to an individual with its errors
    {:program prog
-    :errors (first error-list)
-    :total-error (first error-list)}))
-
-(defn state-to-individual
-  ([state]  ;; Just converts program to individual with no errors
-  {:program (:program state)
-   :image (:image state)
-   :errors '[]
-   :total-error 0})
-  ([state error-list total-error]  ;; Converts a program to an individual with its errors
-   {:program (:program state)
-    :image (:image state)
     :errors (first error-list)
     :total-error (first error-list)}))
 
@@ -221,7 +199,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Integer stack instructions
-;; MAYBE
 (defn in1
   "Pushes the input labeled :in1 on the inputs map onto the :exec stack.
   Can't use make-push-instruction, since :input isn't a stack, but a map."
@@ -232,13 +209,14 @@
                  ((state :input) :in1)))
 
 (defn in1*
+  "in1 instruction for images"
   [state]
   (push-to-stack state :image ((state :input) :in1)))
+
 (defn in2
+  "in2 instruction for images"
   [state]
   (push-to-stack state :image ((state :input) :in2)))
-  ;;(assoc state :image ((state :input) :in1)))
-
 
 (defn integer_+
   "Adds the top two integers and leaves result on the integer stack.
@@ -252,29 +230,30 @@
   [state]
   (make-push-instruction state -' [:integer :integer] :integer))
 
-;; If the deducer is greater than the item, return 0, else return x-y
 (defn zero_-
+  "If the deducer is greater than the item, return 0, else return x-y"
   [x y]
   (if (> x y)
    (-' x y)
    0))
 
-;; Takes a state and applies subtraction to it getting the item from the integers
-;; If the integer is bigger than the list item, it returns 0
 (defn integer_-*
+  "Takes a state and applies subtraction to it getting the item from the integers
+  If the integer is bigger than the list item, it returns 0"
+
   [state]
   (let [deducer (peek-stack state :integer)]
     (if (zero? (count (:integer state)))
       state
-      (pop-stack (assoc state :image (concat (list (map #(zero_- % deducer) (first (get state :image)))) (rest (:image state)))) :integer))))
+      (pop-stack (assoc state :image (concat
+                                      (list (map #(zero_- % deducer) (first (get state :image))))
+                                      (rest (:image state)))) :integer))))
 
 (defn integer_*
   "Multiplies the top two integers and leaves result on the integer stack."
   [state]
   (make-push-instruction state *' [:integer :integer] :integer))
 
-;; BAD
-;; Needs to be changed based on how we do integer_%
 (defn divide_by_zero?
   "Helper function for integer_%.  Makes sure we don't divide by 0."
   [state]
@@ -298,7 +277,6 @@
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Exec instructions
 
-;; WILL NEED TO DEAL WITH INFINITE LOOPS IN EXEC INSTRUCTIONS
 (defn exec_do*count
   ""
   [state]
@@ -329,8 +307,7 @@
       ;; remove second element of exec, popping from bool stack also
       (assoc (pop-stack state :bool) :exec (conj (rest (rest (get state :exec))) (peek-stack state :exec)))
       ;; remove first element of exec, popping from bool stack also
-      (assoc (pop-stack state :bool) :exec (rest (get state :exec)))
-      )))
+      (assoc (pop-stack state :bool) :exec (rest (get state :exec))))))
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Image manipulation
@@ -471,13 +448,10 @@
         rand-x (rand-int (width img))
         rand-y (rand-int (height img))
         rand-dim (inc (rand-int (min (dec (- (width img) rand-x)) (dec (- (height img) rand-y)))))
-        ;img-matrix (image_to_matrix img)
         rotated-section (rotate (sub-image img rand-x rand-y rand-dim rand-dim) (rand-nth '(90 180 270)))]
-        ;rotated-section-matrix (image_to_matrix
   
     (push-to-stack (pop-stack state :image) :image
-                   (replace-img-section img rotated-section rand-x rand-y))
-    ))
+                   (replace-img-section img rotated-section rand-x rand-y))))
 
 
 (defn apply-bit-operators
@@ -500,7 +474,6 @@
   two images of random dimensions (same for each image) and performs a bitwise AND between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB
   (image-bitwise-helper state 'bit-and))
 
 (defn section-or
@@ -508,7 +481,6 @@
   two images of random dimensions (same for each image) and performs a bitwise OR between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB
   (image-bitwise-helper state 'bit-or))
 
 (defn section-xor
@@ -516,7 +488,6 @@
   two images of random dimensions (same for each image) and performs a bitwise XOR between
   all of the pixels in rectangle 1 and rectangle 2.  Returns modified image 2"
   [state]
-  :STUB
   (image-bitwise-helper state 'bit-xor))
 
 
@@ -527,43 +498,48 @@
 (defn invert_colors
   "Inverts colors of the pic"
   [state]
-  :STUB
   (if (empty-stack? state :image)
     state
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/invert))))))
+    (assoc (pop-stack state :image) :image (conj
+                                            (get (pop-stack state :image) :image)
+                                            (filter-image (peek-stack state :image) (filt/invert))))))
 
 (defn laplace_filter
   "Applies a laplace filter to the image"
   [state]
-  :STUB
     (if (empty-stack? state :image)
     state
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/laplace))))))
+    (assoc (pop-stack state :image) :image (conj
+                                            (get (pop-stack state :image) :image)
+                                            (filter-image (peek-stack state :image) (filt/laplace))))))
 
 (defn emboss_filter
   "Applies a emboss filter to the image"
   [state]
-  :STUB
   (if (empty-stack? state :image)
     state
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/emboss))))))
+    (assoc (pop-stack state :image) :image (conj
+                                            (get (pop-stack state :image) :image)
+                                            (filter-image (peek-stack state :image) (filt/emboss))))))
 
 (defn edge_filter
   "Applies an edge filter to the image"
   [state]
-  :STUB
   (if (empty-stack? state :image)
     state
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/edge))))))
+    (assoc (pop-stack state :image) :image (conj
+                                            (get (pop-stack state :image) :image)
+                                            (filter-image (peek-stack state :image) (filt/edge))))))
 
 
 (defn noise_filter
   "Applies a noise filter to the image"
   [state]
-  :STUB
   (if (empty-stack? state :image)
     state
-    (assoc (pop-stack state :image) :image (conj (get (pop-stack state :image) :image) (filter-image (peek-stack state :image) (filt/noise))))))
+    (assoc (pop-stack state :image) :image (conj
+                                            (get (pop-stack state :image) :image)
+                                            (filter-image (peek-stack state :image) (filt/noise))))))
 
 (defn fuck-shit-stack
   "Completely re-writes a matrix based off nothing but random numbers"
@@ -638,7 +614,6 @@
         :else ((eval element) popped-state)))
     push-state))
 
-;; MAYBE
 (defn interpret-push-program
   "Runs the given program starting with the stacks in start-state. Continues
   until the exec stack is empty. Returns the state of the stacks after the
@@ -650,10 +625,7 @@
           state
           (recur (interpret-one-step state)))))) ;; Recur interpret each step
 
-;; Just for testing really, im calling (interpret-full-state full-state) => state with image (0 0 0 0 0 0 1 2 3 3 ...)
-(defn interpret-full-state
-  [state]
-  (interpret-push-program (get state :exec) (assoc state :exec '())))
+
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Interpreter End ;;
 ;;;;;;;;;;;;;;;;;;;;;
@@ -686,7 +658,6 @@
 (defn find-lowest-error
   "Finds the lowest error in the population for a given test case"
   [population case]
-  ;(println "case errors: " (map #(nth % case) (map #(:errors %) population)))
   (apply min (map #(nth % case) (map #(:errors %) population))))
 
 
@@ -781,8 +752,6 @@
    prog-b]
   (let [indices-a (pick-indices prog-a)
         indices-b (pick-indices prog-b)]
-    (println indices-a)
-    (println indices-b) 
     (concat (subvec (vec prog-b) 0 (first indices-b))
             (subvec (vec prog-a) (first indices-a) (last indices-a))
             (subvec (vec prog-b) (last indices-b)))))
