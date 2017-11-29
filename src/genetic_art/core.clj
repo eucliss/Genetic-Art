@@ -349,8 +349,6 @@
 
 (defn vsplit_helper
   [state img2 new-list]
-  (println (count new-list))
-  (println (width img2))
   (push-to-stack (pop-stack (pop-stack state :image) :image) :image img2))
 
 (defn vsplit_combine
@@ -695,6 +693,7 @@
                                                   candidate)) candidates))]
             (recur new-candidates
                    (inc case)))))))))
+
 
 
 (defn tournament-selection
@@ -1131,8 +1130,8 @@ Best errors: (117 96 77 60 45 32 21 12 5 0 3 4 3 0 5 12 21 32 45 60 77)
     (binding [*ns* (the-ns 'genetic_art.core)]
     (push-gp {:instructions init-instructions
               :error-function Euclidean-error-function
-              :max-generations 5
-              :population-size 100
+              :max-generations 20
+              :population-size 20
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
               :input-images input-images
