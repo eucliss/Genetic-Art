@@ -564,6 +564,9 @@
   (if (not (empty-stack? push-state :exec))  ;; If it is empty, return the push-state
     (let [element (peek-stack push-state :exec)
           popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
+      (if (not (empty-stack? push-state :image))
+        (show (peek-stack push-state :image) :zoom 2.0)
+        :nil)
       (cond
         (instance? Boolean element) (push-to-stack popped-state :bool element)
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
@@ -1014,7 +1017,8 @@
   []
   (map #(resize % 100 100)
        (load-images "300trippy.png" "300dali2.jpg" "300dali1.jpg" "100_fund.jpeg"
-                    "100_nbc.png" "100_soccer.png" "100_icons.jpeg" "100_house.png")))
+                    "100_nbc.png" "100_soccer.png" "100_icons.jpeg" "100_house.png"
+                    "100_nyc.jpg" "100_sunset.jpg" "100_china.jpg" "480_loop.jpeg" "large_people.jpg" "large_water.jpg")))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;
@@ -1028,8 +1032,8 @@
     (binding [*ns* (the-ns 'genetic_art.core)]
     (push-gp {:instructions init-instructions
               :error-function Euclidean-error-function
-              :max-generations 5
-              :population-size 20
+              :max-generations 20
+              :population-size 4
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
               :input-images input-images
