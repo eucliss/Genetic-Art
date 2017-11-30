@@ -1,11 +1,9 @@
-
 (ns genetic_art.core
   (:gen-class))
 
 ;; Use these for matrix manipulation and determinants
 (require '[clojure.core.matrix :as m])
 (require '[clojure.core.matrix.operators :as m-ops])
-
 
 (m/set-current-implementation :vectorz)
 
@@ -25,33 +23,6 @@
    :image '()
    :input {:in1 4}})
 
-; An example Push program
-(def example-push-program
-  '(in2 in1* hsplit_combine invert_colors))
-
-(def example-push-program-input
-  '(in1))
-
-; An example individual in the population
-; Made of a map containing, at mimimum, a program, the errors for
-; the program, and a total error
-(def example-individual
-  {:program '(3 5 integer_* 4 integer_-)
-   :errors [8 7 6 5 4 3 2 1 0 1]
-   :total-error 37
-   :determinant-error 12})
-
-;;;;;;;;;;;;;;;;;;;;;;;
-;; Examples
-;;;;;;;;;;;;;;;;;;;;;;;
-(def image_example
-  '(6,3,4,5 5, 3, 1, 9, 1, 12, 6, 8, 5, 12, 9, 6)
-  )
-
-(def image_example_empty
-  '(0,0,0,0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-  )
-
 (def empty-push-state
   {:exec '()
    :integer '()
@@ -59,24 +30,12 @@
    :input {}
    :bool '()})
 
-;;;;;;;;;;;;;;;;;;
-;; Examples end ;;
-;;;;;;;;;;;;;;;;;;
-
 ;;;;;;;;;;
 ;; Instructions must all be either functions that take one Push
 ;; state and return another or constant literals.
 
 (def init-instructions
   (list
-
-   ;'in1*
-   ;'in2
-   ;'in1*
-   ;'in2
-   ;'in1*
-   ;'in2
-   ;'fuck-shit-stack
    'exec_dup
    'exec_if
    'invert_colors
@@ -167,10 +126,11 @@
         (push-to-stack new-state return-stack result)))))
 
 (defn image_to_matrix
+  "Takes a buffered image and returns a matrix of the integer values for the pixels.
+  Each array in the matrix array represents a row."
   [img]
   (m/matrix (into [] (map #(into [] %)(partition (width img) (get-pixels img))))))
 
-;; BAD
 (defn prog-to-individual
   "Takes a program and creates an individual with no error values or with error values if given."
   ([prog]  ;; Just converts program to individual with no errors
@@ -197,106 +157,18 @@
 ;; Instructions ;;
 ;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Integer stack instructions
-(defn in1
-  "Pushes the input labeled :in1 on the inputs map onto the :exec stack.
-  Can't use make-push-instruction, since :input isn't a stack, but a map."
-  ;; Doesnt pop from the exec stack
-  [state]
-  (push-to-stack state
-                 :exec
-                 ((state :input) :in1)))
 
-(defn in1*
-  "in1 instruction for images"
-  [state]
-  (push-to-stack state :image ((state :input) :in1)))
-
-(defn in2
-  "in2 instruction for images"
-  [state]
-  (push-to-stack state :image ((state :input) :in2)))
-
-(defn integer_+
-  "Adds the top two integers and leaves result on the integer stack.
-  If integer stack has fewer than two elements, noops."
-  [state]
-  (make-push-instruction state +' [:integer :integer] :integer))
-
-(defn integer_-
-  "Subtracts the top two integers and leaves result on the integer stack.
-  Note: the second integer on the stack should be subtracted from the top integer."
-  [state]
-  (make-push-instruction state -' [:integer :integer] :integer))
-
-(defn zero_-
-  "If the deducer is greater than the item, return 0, else return x-y"
-  [x y]
-  (if (> x y)
-   (-' x y)
-   0))
-
-(defn integer_-*
-  "Takes a state and applies subtraction to it getting the item from the integers
-  If the integer is bigger than the list item, it returns 0"
-
-  [state]
-  (let [deducer (peek-stack state :integer)]
-    (if (zero? (count (:integer state)))
-      state
-      (pop-stack (assoc state :image (concat
-                                      (list (map #(zero_- % deducer) (first (get state :image))))
-                                      (rest (:image state)))) :integer))))
-
-(defn integer_*
-  "Multiplies the top two integers and leaves result on the integer stack."
-  [state]
-  (make-push-instruction state *' [:integer :integer] :integer))
-
-(defn divide_by_zero?
-  "Helper function for integer_%.  Makes sure we don't divide by 0."
-  [state]
-  (zero? (first (state :integer))))
-
-(defn integer_%
-  "This instruction implements 'protected division'.
-  In other words, it acts like integer division most of the time, but if the
-  denominator is 0, it returns the numerator, to avoid divide-by-zero errors."
-  [state]
-  (if (< (count (:integer state)) 2)
-    state
-    (if (divide_by_zero? state) ;; Return the numerator to the int stack if dividing by 0, else division
-      (assoc state :integer
-             (conj
-              (get (pop-stack (pop-stack state :integer) :integer)
-                   :integer)
-              (peek-stack state :integer)))
-      (make-push-instruction state quot [:integer :integer] :integer))))
-
-;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;
 ;; Exec instructions
-
-(defn exec_do*count
-  ""
-  [state]
-  :STUB)
-
-(defn exec_do*range
-  ""
-  [state]
-  :STUB)
 
 (defn exec_dup
   "Duplicates the first element on the exec stack and places it in front"
   [state]
-  :STUB
-  (if (zero? (count (get state :exec)))
+  (if (zero? (count (get state :exec))) ;; make sure the stack isnt empty
     state
-    (if (= (peek-stack state :exec) 'exec_dup)
+    (if (= (peek-stack state :exec) 'exec_dup) ;; deals with case (exec_dup exec_dup) infinite looping
       state
-      (assoc state :exec (conj (get state :exec) (peek-stack state :exec)))
-      )))
+      (assoc state :exec (conj (get state :exec) (peek-stack state :exec))))))
 
 (defn exec_if
   "If bool stack has true, first item on exec stack, else second item"
@@ -311,20 +183,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Image manipulation
-(defn minus_pixels
-  [imag pixels deducer]
-  (dotimes [i (count pixels)] (aset pixels i (zero_- (nth pixels i) deducer)))
-  (set-pixels imag pixels)
-  imag)
-
-(defn integer_-*_buffered
-  [state]
-  (if (zero? (count (:integer state)))
-     state
-     (let [deducer (peek-stack state :integer)
-           imag (first (get state :image))
-           pixels (get-pixels imag)]
-       (pop-stack (assoc state :image (conj (rest (:image state)) (minus_pixels imag pixels deducer))) :integer))))
 
 (defn vsplit_combine_list
   "Splits two input images in half and combines them, half of image A, half of image B.
@@ -421,10 +279,12 @@
 
 
 (defn apply-bit-operators
+  "Helper function for the logical operators. Applies operators to the given list."
   [ls op]
   (apply #((eval op) % %2) ls))
 
 (defn image-bitwise-helper
+  "Helper function for applying bitwise operators to two images"
   [state op]
   (if (>= 2 (count (get state :image)))
     state
@@ -458,11 +318,12 @@
 
 
 (defn rand-color-input
+  "Returns a random color. Has input for being used with filter/map."
   [x]
   (rand-colour))
 
 (defn invert_colors
-  "Inverts colors of the pic"
+  "Inverts colors of the image"
   [state]
   (if (empty-stack? state :image)
     state
@@ -547,14 +408,12 @@
 ;; Interpreter ;;
 ;;;;;;;;;;;;;;;;;
 
-;; MAYBE
 (defn load-exec
   "Places a program in the exec stack in a map"
   [program state]
   (assoc state :exec (concat program (state :exec))))
 
 
-;; MAYBE
 (defn interpret-one-step
   "Helper function for interpret-push-program.
   Takes a Push state and executes the next instruction on the exec stack,
@@ -565,12 +424,14 @@
     (let [element (peek-stack push-state :exec)
           popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
       (if (not (empty-stack? push-state :image))
-        (show (peek-stack push-state :image) :zoom 2.0)
+        ;(write (resize (peek-stack push-state :image) 1000 1000)
+         ;  (str "results/progress/" (new java.util.Date) "testing.png")
+          ; "png" :quality 1.0 :progressive true)
+        (show (resize (peek-stack push-state :image) 200 200) :zoom 2.0)
         :nil)
       (cond
         (instance? Boolean element) (push-to-stack popped-state :bool element)
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
-        (= 'in1 element) (in1* popped-state) ;; required b/c else statement applies first item in :exec stack and then pops it, so without this inputs just get removed form exec stack
         (seq? element) (interpret-one-step (load-exec element popped-state)) ;; Nested isntructions
         :else ((eval element) popped-state)))
     push-state))
@@ -804,6 +665,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn load-initial-state
+  "Loads the input images into the state for the inception of the programs evaluation."
   [state input-images]
   (loop [iter 0
          state state]
@@ -813,6 +675,7 @@
              (push-to-stack state :image (nth input-images iter))))))
 
 (defn multiple-inputs
+  "Pushes multiple inputs to the input stack."
   [state lst]
   (loop [iter 0
          state state]
@@ -896,7 +759,7 @@
   (map image-determinant (sectionalize target-image)))
 
 
-(defn Euclidean-error-function
+(defn error-function
   [individual initial-push-state input-images target-image]
   (let [target-list (test-case-list target-image)
         result (peek-stack (get-solution individual initial-push-state input-images) :image)
@@ -1031,8 +894,8 @@
         target-image targetIcon100]
     (binding [*ns* (the-ns 'genetic_art.core)]
     (push-gp {:instructions init-instructions
-              :error-function Euclidean-error-function
-              :max-generations 20
+              :error-function error-function
+              :max-generations 2
               :population-size 4
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
