@@ -423,12 +423,6 @@
   (if (not (empty-stack? push-state :exec))  ;; If it is empty, return the push-state
     (let [element (peek-stack push-state :exec)
           popped-state (pop-stack push-state :exec)] ;; Else lets see whats the first element
-      (if (not (empty-stack? push-state :image))
-        ;(write (resize (peek-stack push-state :image) 1000 1000)
-         ;  (str "results/progress/" (new java.util.Date) "testing.png")
-          ; "png" :quality 1.0 :progressive true)
-        (show (resize (peek-stack push-state :image) 200 200) :zoom 2.0)
-        :nil)
       (cond
         (instance? Boolean element) (push-to-stack popped-state :bool element)
         (integer? element) (push-to-stack popped-state :integer element) ;; Number
@@ -896,7 +890,7 @@
     (push-gp {:instructions init-instructions
               :error-function error-function
               :max-generations 2
-              :population-size 4
+              :population-size 10
               :max-initial-program-size 30
               :initial-push-state (load-initial-state empty-push-state (input-images))
               :input-images input-images
